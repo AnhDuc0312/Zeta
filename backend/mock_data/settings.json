@@ -1,0 +1,32 @@
+[
+  {
+    "id": "91cedfe1-91c1-4208-abce-35067f132b9c",
+    "key": "site_name",
+    "value": "Orbit Lab",
+    "type": "general"
+  },
+  {
+    "id": "c6583c17-090e-44d8-937b-31026eac8799",
+    "key": "email_from",
+    "value": "noreply@orbitlab.com",
+    "type": "email"
+  },
+  {
+    "id": "414e3a31-f313-4da3-aa3d-c8bed35d4102",
+    "key": "max_upload_size",
+    "value": "10MB",
+    "type": "content"
+  },
+  {
+    "id": "a7b7fd07-a6b3-49b5-aae0-3995b0b19b5b",
+    "key": "theme",
+    "value": "light",
+    "type": "appearance"
+  },
+  {
+    "id": "0173d1b0-cfe8-47b4-bb76-cc21e643c385",
+    "key": "enable_notifications",
+    "value": true,
+    "type": "notifications"
+  }
+]
