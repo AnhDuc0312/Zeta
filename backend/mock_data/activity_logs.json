@@ -1,0 +1,112 @@
+[
+  {
+    "id": "edd5e8c0-bc8c-47a0-8687-dddfae5e3358",
+    "timestamp": "2024-06-01T10:00:00Z",
+    "user_id": "f2f22599-3609-4b4d-90eb-ed67bc9e61c7",
+    "action": "login",
+    "resource": "auth",
+    "ip": "192.168.1.1",
+    "user_agent": "Mozilla/5.0",
+    "status": "success",
+    "details": "User logged in"
+  },
+  {
+    "id": "ee65a159-c38d-463f-8cda-4de602eded17",
+    "timestamp": "2024-06-01T10:05:00Z",
+    "user_id": "1e5ed4c2-8cd1-4c8b-82db-674ff40f76cf",
+    "action": "create_content",
+    "resource": "content",
+    "ip": "192.168.1.2",
+    "user_agent": "Mozilla/5.0",
+    "status": "success",
+    "details": "Created content 1"
+  },
+  {
+    "id": "1e016d42-7882-47ed-9e94-02ea44e42875",
+    "timestamp": "2024-06-01T10:10:00Z",
+    "user_id": "d55abd56-bff8-438d-86c7-05fd5dafd793",
+    "action": "comment",
+    "resource": "comment",
+    "ip": "192.168.1.3",
+    "user_agent": "Mozilla/5.0",
+    "status": "info",
+    "details": "Commented on content 2"
+  },
+  {
+    "id": "0cd73dd4-fa19-4b10-958b-fe0cfb1644c6",
+    "timestamp": "2024-06-01T10:15:00Z",
+    "user_id": "c25206c8-caca-4a0e-a0cf-66a8884c8760",
+    "action": "update_profile",
+    "resource": "user",
+    "ip": "192.168.1.4",
+    "user_agent": "Mozilla/5.0",
+    "status": "success",
+    "details": "Updated profile"
+  },
+  {
+    "id": "de0e4c4d-796e-4892-b81d-82de9f2d3712",
+    "timestamp": "2024-06-01T10:20:00Z",
+    "user_id": "d87744bd-4db1-463d-b934-1e7618ecbf54",
+    "action": "delete_content",
+    "resource": "content",
+    "ip": "192.168.1.5",
+    "user_agent": "Mozilla/5.0",
+    "status": "error",
+    "details": "Failed to delete content 3"
+  },
+  {
+    "id": "fc6ddebe-fc96-42cb-bb33-2bc695095e7c",
+    "timestamp": "2024-06-01T10:25:00Z",
+    "user_id": "753516d9-47b0-4fa2-87be-20ea4558fb01",
+    "action": "like_content",
+    "resource": "content",
+    "ip": "192.168.1.6",
+    "user_agent": "Mozilla/5.0",
+    "status": "success",
+    "details": "Liked content 4"
+  },
+  {
+    "id": "f1c6dea3-7de7-48ee-8dc7-4cf2478d8652",
+    "timestamp": "2024-06-01T10:30:00Z",
+    "user_id": "e7bb5aab-1217-4e4c-8256-365f25e2d94b",
+    "action": "bookmark_content",
+    "resource": "content",
+    "ip": "192.168.1.7",
+    "user_agent": "Mozilla/5.0",
+    "status": "info",
+    "details": "Bookmarked content 5"
+  },
+  {
+    "id": "967368ae-9d6d-472e-874e-2ea362b2b516",
+    "timestamp": "2024-06-01T10:35:00Z",
+    "user_id": "c017870a-8d7d-4a57-972b-8cfe35d75761",
+    "action": "logout",
+    "resource": "auth",
+    "ip": "192.168.1.8",
+    "user_agent": "Mozilla/5.0",
+    "status": "success",
+    "details": "User logged out"
+  },
+  {
+    "id": "e0be6e48-2c65-4e40-af1e-7d38b734780d",
+    "timestamp": "2024-06-01T10:40:00Z",
+    "user_id": "f468dfe3-f47e-4478-bfc9-78dfa44d8252",
+    "action": "register",
+    "resource": "auth",
+    "ip": "192.168.1.9",
+    "user_agent": "Mozilla/5.0",
+    "status": "success",
+    "details": "User registered"
+  },
+  {
+    "id": "e84f5383-62e7-4677-be6e-05eda7a1a64b",
+    "timestamp": "2024-06-01T10:45:00Z",
+    "user_id": "b1cf21ea-a179-4aa4-a4cc-b5bbfe699ced",
+    "action": "import_content",
+    "resource": "content",
+    "ip": "192.168.1.10",
+    "user_agent": "Mozilla/5.0",
+    "status": "warning",
+    "details": "Imported content"
+  }
+]

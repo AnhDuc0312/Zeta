@@ -1,0 +1,27 @@
+[
+  {
+    "id": "c519880f-20aa-44db-a769-9d6efc291ee9",
+    "name": "Technology",
+    "description": "All about tech."
+  },
+  {
+    "id": "94232f90-beac-4199-b8cb-0d6e6a033280",
+    "name": "Education",
+    "description": "Learning and teaching."
+  },
+  {
+    "id": "50cb026d-efee-4c0d-8ee8-937b8cfc441e",
+    "name": "Travel",
+    "description": "Travel experiences."
+  },
+  {
+    "id": "f3217353-7ed0-4bc3-ad85-1a65f182f007",
+    "name": "Food",
+    "description": "Food and cooking."
+  },
+  {
+    "id": "9fb86d21-3e6a-4d0d-a7e5-3d0095222a65",
+    "name": "Lifestyle",
+    "description": "Life and style."
+  }
+]

@@ -1,0 +1,102 @@
+[
+  {
+    "id": "6ce2ecf5-53f7-4279-9547-2a54ea09b018",
+    "event_type": "page_view",
+    "user_id": "f2f22599-3609-4b4d-90eb-ed67bc9e61c7",
+    "content_id": "52ea53cf-38df-42fb-b881-d164c89564d0",
+    "timestamp": "2024-06-01T10:00:00Z",
+    "meta": {
+      "info": "Viewed homepage"
+    }
+  },
+  {
+    "id": "77c8be66-d5b3-4331-83ef-7610a00566be",
+    "event_type": "like",
+    "user_id": "1e5ed4c2-8cd1-4c8b-82db-674ff40f76cf",
+    "content_id": "17af4cc2-291f-4bd6-a717-d35d587b9919",
+    "timestamp": "2024-06-01T10:05:00Z",
+    "meta": {
+      "info": "Liked content"
+    }
+  },
+  {
+    "id": "81668ccc-8b04-40ad-bb3c-09de8243e3a4",
+    "event_type": "comment",
+    "user_id": "d55abd56-bff8-438d-86c7-05fd5dafd793",
+    "content_id": "dbecccdb-db13-4a48-9bbc-52b22907d95a",
+    "timestamp": "2024-06-01T10:10:00Z",
+    "meta": {
+      "info": "Commented"
+    }
+  },
+  {
+    "id": "374b5cc2-0480-4b6a-ba10-41f1bedec44f",
+    "event_type": "bookmark",
+    "user_id": "c25206c8-caca-4a0e-a0cf-66a8884c8760",
+    "content_id": "17c93822-d2a9-44cc-93b4-8e82869f7c07",
+    "timestamp": "2024-06-01T10:15:00Z",
+    "meta": {
+      "info": "Bookmarked"
+    }
+  },
+  {
+    "id": "ab3f2db0-1e3f-4681-b79f-0756c41887c3",
+    "event_type": "share",
+    "user_id": "d87744bd-4db1-463d-b934-1e7618ecbf54",
+    "content_id": "7422760f-33b5-4ca1-b0bd-b62c694650bd",
+    "timestamp": "2024-06-01T10:20:00Z",
+    "meta": {
+      "info": "Shared"
+    }
+  },
+  {
+    "id": "f8f55159-f84c-4c4a-84c2-c2e3dbdd6240",
+    "event_type": "page_view",
+    "user_id": "753516d9-47b0-4fa2-87be-20ea4558fb01",
+    "content_id": "a6ca3dc5-c032-4ee1-9739-544b81c0900a",
+    "timestamp": "2024-06-01T10:25:00Z",
+    "meta": {
+      "info": "Viewed content"
+    }
+  },
+  {
+    "id": "78c5cb00-82d7-47e0-9b27-e907263c7f3e",
+    "event_type": "like",
+    "user_id": "e7bb5aab-1217-4e4c-8256-365f25e2d94b",
+    "content_id": "4000a698-b759-4dcf-8f81-9d57f904490b",
+    "timestamp": "2024-06-01T10:30:00Z",
+    "meta": {
+      "info": "Liked content"
+    }
+  },
+  {
+    "id": "2fbbcb92-c3de-4c0e-a93c-aea3cd936e8d",
+    "event_type": "comment",
+    "user_id": "c017870a-8d7d-4a57-972b-8cfe35d75761",
+    "content_id": "12da8bef-01c7-4316-a179-8a728fe4d92f",
+    "timestamp": "2024-06-01T10:35:00Z",
+    "meta": {
+      "info": "Commented"
+    }
+  },
+  {
+    "id": "4406f0ed-fb9e-4433-bec1-77581694bfba",
+    "event_type": "bookmark",
+    "user_id": "f468dfe3-f47e-4478-bfc9-78dfa44d8252",
+    "content_id": "12e9b9dd-41cc-4135-8836-6f0791dc7e43",
+    "timestamp": "2024-06-01T10:40:00Z",
+    "meta": {
+      "info": "Bookmarked"
+    }
+  },
+  {
+    "id": "1d04bb17-27cf-4eec-a95a-d2dd9a0a0dfb",
+    "event_type": "share",
+    "user_id": "b1cf21ea-a179-4aa4-a4cc-b5bbfe699ced",
+    "content_id": "e5ebe4d2-a5e1-4e76-ae6f-04b8dc371489",
+    "timestamp": "2024-06-01T10:45:00Z",
+    "meta": {
+      "info": "Shared"
+    }
+  }
+]
