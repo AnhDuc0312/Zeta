@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import Logo from "../components/Logo";
 import { useAuth } from "../contexts/AuthContext";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -17,17 +18,18 @@ export default function Login() {
   });
   const [error, setError] = useState("");
   const [loadingForm, setLoadingForm] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showGoogleLogin, setShowGoogleLogin] = useState(false);
+  const [showGitHubLogin, setShowGitHubLogin] = useState(false);
 
   // Chuyển hướng nếu đã đăng nhập
   useEffect(() => {
+    document.title = isRegister ? "Sign Up - ZetaScript" : "Login - ZetaScript";
     if (isLoggedIn && !loading) {
       navigate("/");
     }
-  }, [isLoggedIn, loading, navigate]);
+  }, [isLoggedIn, loading, navigate, isRegister]);
 
-  useEffect(() => {
-    document.title = isRegister ? "Register | ZetaScript" : "Login | ZetaScript";
-  }, [isRegister]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -112,12 +114,17 @@ export default function Login() {
           setLoadingForm(false);
           return;
         }
+        console.log("Login successful:", data); // Debug log
         login(data.user, data.token); // Lưu user và token vào context
-        if (data.user.email === "duc.la0312@gmail.com") {
-          navigate("/admin/dashboard");
-        } else {
-          navigate("/account");
-        }
+        console.log("About to navigate to /account"); // Debug log
+        // Use setTimeout to ensure state is updated before navigation
+        setTimeout(() => {
+          if (data.user.email === "duc.la0312@gmail.com") {
+            navigate("/admin/dashboard");
+          } else {
+            navigate("/");
+          }
+        }, 100);
       } catch (err) {
         setError("Network error. Please try again.");
       } finally {
@@ -264,7 +271,7 @@ export default function Login() {
                 <button
                   type="button"
                   className="font-medium text-black hover:underline"
-                  onClick={() => alert('Tính năng quên mật khẩu sẽ sớm ra mắt!')}
+                  onClick={() => setShowForgotPassword(true)}
                 >
                   Forgot your password?
                 </button>
@@ -314,15 +321,124 @@ export default function Login() {
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <button className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50" onClick={() => alert('Tính năng đăng nhập Google sẽ sớm ra mắt!')}>
+            <button 
+              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50" 
+              onClick={() => setShowGoogleLogin(true)}
+            >
               <span>Google</span>
             </button>
-            <button className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+            <button 
+              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              onClick={() => setShowGitHubLogin(true)}
+            >
               <span>GitHub</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Forgot Password</DialogTitle>
+            <DialogDescription>
+              Reset your password to regain access to your account
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-center">
+              <p className="text-gray-600 mb-4">
+                Password reset functionality is coming soon! For now, please contact support if you need assistance.
+              </p>
+              <div className="space-y-2">
+                <p className="font-medium">Email: support@zetascript.com</p>
+                <p className="font-medium">Phone: +1 (555) 123-4567</p>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <button 
+                onClick={() => window.open('mailto:support@zetascript.com?subject=Password Reset Request', '_blank')}
+                className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Contact Support
+              </button>
+            </div>
+            <div className="flex justify-end">
+              <button 
+                onClick={() => setShowForgotPassword(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Google Login Dialog */}
+      <Dialog open={showGoogleLogin} onOpenChange={setShowGoogleLogin}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Google Sign-In</DialogTitle>
+            <DialogDescription>
+              Sign in with your Google account
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-center">
+              <p className="text-gray-600 mb-4">
+                Google authentication is currently in development. Please use email and password for now.
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-blue-800 text-sm">
+                  <strong>Coming Soon:</strong> One-click sign-in with Google, GitHub, and other social providers.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <button 
+                onClick={() => setShowGoogleLogin(false)}
+                className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* GitHub Login Dialog */}
+      <Dialog open={showGitHubLogin} onOpenChange={setShowGitHubLogin}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>GitHub Sign-In</DialogTitle>
+            <DialogDescription>
+              Sign in with your GitHub account
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-center">
+              <p className="text-gray-600 mb-4">
+                GitHub authentication is currently in development. Please use email and password for now.
+              </p>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-gray-800 text-sm">
+                  <strong>Coming Soon:</strong> One-click sign-in with Google, GitHub, and other social providers.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <button 
+                onClick={() => setShowGitHubLogin(false)}
+                className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -12,49 +12,181 @@ import {
   User,
 } from "lucide-react";
 import Layout from "../components/Layout";
+import { markdownToHtml, processImageUrls, enhanceContent } from "../lib/markdown";
+import { useSEO } from "../hooks/useSEO";
 
 export default function ArticleDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  // All state declarations
+  const [article, setArticle] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [isLiking, setIsLiking] = useState(false);
 
-  // Mock article data - in real app, fetch based on id
-  const article = {
-    id: parseInt(id || "1"),
-    title: "The Future of Web Development: Trends to Watch in 2024",
-    content: `
-      <p>Web development continues to evolve at a rapid pace, with new technologies and methodologies emerging regularly. As we look toward 2024, several key trends are shaping the future of how we build and interact with web applications.</p>
-      
-      <h2>1. Server-Side Rendering Renaissance</h2>
-      <p>Server-side rendering (SSR) is making a significant comeback, driven by frameworks like Next.js, Nuxt.js, and SvelteKit. The benefits of SSR include improved SEO, faster initial page loads, and better performance on low-powered devices.</p>
-      
-      <h2>2. Web Assembly Integration</h2>
-      <p>WebAssembly (WASM) is enabling developers to run high-performance applications in the browser. From gaming to data visualization, WASM is opening new possibilities for web applications that were previously only possible with native software.</p>
-      
-      <h2>3. AI-Powered Development Tools</h2>
-      <p>Artificial intelligence is transforming how we write code. Tools like GitHub Copilot and ChatGPT are becoming integral parts of the development workflow, helping developers write better code faster and catch bugs before they make it to production.</p>
-      
-      <h2>4. Edge Computing and CDNs</h2>
-      <p>Edge computing is bringing computation closer to users, reducing latency and improving performance. Modern CDNs are becoming more intelligent, offering features like edge functions and real-time data processing.</p>
-      
-      <h2>5. Micro-Frontends Architecture</h2>
-      <p>Large organizations are adopting micro-frontends to allow teams to work independently while maintaining a cohesive user experience. This approach enables better scalability and team autonomy.</p>
-      
-      <h2>Conclusion</h2>
-      <p>The web development landscape continues to evolve, driven by the need for better performance, developer experience, and user satisfaction. Staying current with these trends will be crucial for developers looking to build the next generation of web applications.</p>
-    `,
-    author: {
-      name: "Jane Smith",
-      avatar: null,
-      bio: "Senior Frontend Developer at TechCorp",
-    },
-    publishedAt: "2024-01-15",
-    readTime: "8 min read",
-    views: 1247,
-    likes: 89,
-    comments: 12,
-    tags: ["Web Development", "Technology", "Frontend", "2024 Trends"],
-    category: "Technology",
+  // Handle like/unlike
+  const handleLike = async () => {
+    if (isLiking) return;
+    
+    setIsLiking(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      const response = await fetch(`/api/content/${id}/like`, {
+        method: isLiked ? "DELETE" : "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        setIsLiked(!isLiked);
+        // Fetch updated article data to get correct like count
+        const articleResponse = await fetch(`/api/content/${id}`);
+        if (articleResponse.ok) {
+          const articleData = await articleResponse.json();
+          setLikeCount(articleData.likes || 0);
+        } else {
+          // Fallback to local update if fetch fails
+          setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+        }
+      } else {
+        console.error("Failed to toggle like");
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    } finally {
+      setIsLiking(false);
+    }
   };
+
+  // Fetch article data
+  useEffect(() => {
+    const fetchArticle = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/content/${id}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Parse tags if it's a JSON string
+          if (typeof data.tags === 'string') {
+            try {
+              data.tags = JSON.parse(data.tags);
+            } catch (e) {
+              data.tags = [];
+            }
+          }
+          setArticle(data);
+          setLikeCount(data.likes || 0);
+          
+          // Increment view count
+          try {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            await fetch(`/api/content/${id}/view`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ userId: user.id || null }),
+            });
+          } catch (viewError) {
+            console.log('View tracking failed (non-critical):', viewError);
+          }
+        } else {
+          setArticle(null);
+        }
+      } catch (error) {
+        console.error("Error fetching article:", error);
+        setArticle(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchArticle();
+    } else {
+      setLoading(false);
+    }
+  }, [id]);
+
+  // Check if user has liked this article
+  useEffect(() => {
+    const checkLikeStatus = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const response = await fetch(`/api/content/${id}/like-status`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setIsLiked(data.isLiked);
+        }
+      } catch (error) {
+        console.error("Error checking like status:", error);
+      }
+    };
+
+    if (id) {
+      checkLikeStatus();
+    }
+  }, [id]);
+
+  // SEO optimization
+  useSEO({
+    title: article?.title || "Article",
+    description: article?.description || article?.content?.substring(0, 160) + "...",
+    keywords: article?.tags?.join(", ") || "article, content",
+    author: article?.author_name || "ZetaScript",
+    publishedTime: article?.created_at,
+    modifiedTime: article?.updated_at,
+    type: "article",
+    url: window.location.href,
+    image: article?.image_url || "/favicon-v2.svg"
+  });
+
+  // Early returns after all hooks
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!article) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Article not found</h1>
+            <button
+              onClick={() => navigate("/articles")}
+              className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              Back to Articles
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   const relatedArticles = [
     {
@@ -65,202 +197,173 @@ export default function ArticleDetail() {
     },
     {
       id: 3,
-      title: "CSS Grid vs Flexbox: When to Use Which",
-      author: "Sarah Wilson",
+      title: "CSS Grid vs Flexbox",
+      author: "Jane Smith",
       readTime: "4 min read",
-    },
-    {
-      id: 4,
-      title: "TypeScript Best Practices for 2024",
-      author: "Mike Johnson",
-      readTime: "7 min read",
     },
   ];
 
-  useEffect(() => {
-    document.title = article?.title ? `${article.title} | ZetaScript` : "Article Detail | ZetaScript";
-  }, [article?.title]);
-
   return (
-    <Layout showSearch={false}>
-      <div className="max-w-4xl mx-auto">
-        {/* Back Navigation */}
-        <button
-          onClick={() => navigate("/articles")}
-          className="flex items-center gap-2 text-gray-600 hover:text-black mb-8 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Articles
-        </button>
+    <Layout>
+      <div className="min-h-screen bg-white">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-6xl mx-auto px-4 py-6">
+            <button
+              onClick={() => navigate("/articles")}
+              className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors mb-6 group"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              Back to Articles
+            </button>
 
-        {/* Article Header */}
-        <header className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-              {article.category}
-            </span>
-          </div>
-
-          <h1 className="text-4xl font-bold text-black mb-6 leading-tight">
-            {article.title}
-          </h1>
-
-          {/* Article Meta */}
-          <div className="flex flex-wrap items-center gap-6 text-gray-600 mb-6">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              <span className="text-sm">
-                {new Date(article.publishedAt).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span className="text-sm">{article.readTime}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4" />
-              <span className="text-sm">{article.views} views</span>
-            </div>
-          </div>
-
-          {/* Author */}
-          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg mb-8">
-            <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center">
-              <User className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-black">
-                {article.author.name}
-              </h3>
-              <p className="text-sm text-gray-600">{article.author.bio}</p>
-            </div>
-          </div>
-        </header>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Main Content */}
-          <article className="lg:col-span-3">
-            {/* Featured Image Placeholder */}
-            <div className="aspect-[16/9] bg-gray-200 rounded-lg mb-8"></div>
-
-            {/* Article Content */}
-            <div
-              className="prose prose-lg max-w-none prose-headings:text-black prose-p:text-gray-700 prose-a:text-black hover:prose-a:underline"
-              dangerouslySetInnerHTML={{ __html: article.content }}
-            />
-
-            {/* Tags */}
-            <div className="mt-8 pt-8 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-black mb-4">Tags</h3>
-              <div className="flex flex-wrap gap-2">
-                {article.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors cursor-pointer"
-                  >
-                    {tag}
+            <div className="mb-6">
+              <h1 className="text-4xl font-bold text-black mb-4 leading-tight">
+                {article.title}
+              </h1>
+              
+              <div className="flex flex-wrap items-center gap-4 mb-6">
+                <span className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">
+                  {article.category || 'Technology'}
+                </span>
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-sm">{Math.ceil((article.word_count || 0) / 200)} min read</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Eye className="w-4 h-4" />
+                  <span className="text-sm">{article.views || 0} views</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Calendar className="w-4 h-4" />
+                  <span className="text-sm">
+                    {new Date(article.created_at).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
                   </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Engagement Actions */}
-            <div className="mt-8 pt-8 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <button className="flex items-center gap-2 text-gray-600 hover:text-red-500 transition-colors">
-                    <Heart className="w-5 h-5" />
-                    <span>{article.likes}</span>
-                  </button>
-                  <button className="flex items-center gap-2 text-gray-600 hover:text-blue-500 transition-colors">
-                    <MessageCircle className="w-5 h-5" />
-                    <span>{article.comments}</span>
-                  </button>
                 </div>
-                <div className="flex items-center gap-4">
-                  <button className="flex items-center gap-2 text-gray-600 hover:text-green-500 transition-colors">
-                    <BookmarkPlus className="w-5 h-5" />
-                    Save
-                  </button>
-                  <button className="flex items-center gap-2 text-gray-600 hover:text-blue-500 transition-colors">
-                    <Share2 className="w-5 h-5" />
-                    Share
-                  </button>
+              </div>
+
+              {/* Author */}
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center">
+                  <User className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-black">
+                    {article.author_name || 'Unknown Author'}
+                  </h3>
+                  <p className="text-sm text-gray-600">Published on {new Date(article.created_at).toLocaleDateString()}</p>
                 </div>
               </div>
             </div>
-          </article>
+          </div>
+        </div>
 
-          {/* Sidebar */}
-          <aside className="lg:col-span-1">
-            {/* Table of Contents */}
-            <div className="bg-gray-50 rounded-lg p-6 mb-6 sticky top-6">
-              <h3 className="font-semibold text-black mb-4">
-                Table of Contents
-              </h3>
-              <nav className="space-y-2">
-                <a
-                  href="#"
-                  className="block text-sm text-gray-600 hover:text-black transition-colors"
-                >
-                  Server-Side Rendering Renaissance
-                </a>
-                <a
-                  href="#"
-                  className="block text-sm text-gray-600 hover:text-black transition-colors"
-                >
-                  Web Assembly Integration
-                </a>
-                <a
-                  href="#"
-                  className="block text-sm text-gray-600 hover:text-black transition-colors"
-                >
-                  AI-Powered Development Tools
-                </a>
-                <a
-                  href="#"
-                  className="block text-sm text-gray-600 hover:text-black transition-colors"
-                >
-                  Edge Computing and CDNs
-                </a>
-                <a
-                  href="#"
-                  className="block text-sm text-gray-600 hover:text-black transition-colors"
-                >
-                  Micro-Frontends Architecture
-                </a>
-              </nav>
-            </div>
-
-            {/* Related Articles */}
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h3 className="font-semibold text-black mb-4">
-                Related Articles
-              </h3>
-              <div className="space-y-4">
-                {relatedArticles.map((related) => (
-                  <button
-                    key={related.id}
-                    onClick={() => navigate(`/articles/${related.id}`)}
-                    className="block w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors"
-                  >
-                    <h4 className="font-medium text-black mb-1 line-clamp-2">
-                      {related.title}
-                    </h4>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <span>{related.author}</span>
-                      <span>•</span>
-                      <span>{related.readTime}</span>
-                    </div>
-                  </button>
-                ))}
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {/* Main Content */}
+            <article className="lg:col-span-3">
+              {/* Featured Image */}
+              <div className="aspect-[16/9] bg-gray-200 rounded-lg mb-8 overflow-hidden">
+                <img 
+                  src="/unnamed.png" 
+                  alt={article.title || "Article featured image"}
+                  className="w-full h-full object-cover"
+                />
               </div>
-            </div>
-          </aside>
+
+              {/* Article Content */}
+              <div
+                className="prose prose-lg max-w-none prose-headings:text-black prose-p:text-gray-700 prose-a:text-black hover:prose-a:underline prose-img:rounded-lg"
+                dangerouslySetInnerHTML={{ 
+                  __html: enhanceContent(processImageUrls(markdownToHtml(article.content || '')))
+                }}
+              />
+
+              {/* Tags */}
+              {(article.tags && article.tags.length > 0) && (
+                <div className="mt-8 pt-8 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold text-black mb-4">Tags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {article.tags.map((tag: string) => (
+                      <span
+                        key={tag}
+                        className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors cursor-pointer"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Engagement Actions */}
+              <div className="mt-8 pt-8 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-6">
+                    <button
+                      onClick={handleLike}
+                      disabled={isLiking}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                        isLiked
+                          ? 'text-red-500 bg-red-50 hover:bg-red-100'
+                          : 'text-gray-600 hover:text-red-500 hover:bg-gray-50'
+                      } ${isLiking ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+                      <span className="font-medium">{likeCount}</span>
+                      {isLiking && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>}
+                    </button>
+
+                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-black hover:bg-gray-50 transition-all duration-200">
+                      <MessageCircle className="w-5 h-5" />
+                      <span className="font-medium">{article.comments || 0}</span>
+                    </button>
+
+                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-black hover:bg-gray-50 transition-all duration-200">
+                      <Share2 className="w-5 h-5" />
+                      <span className="font-medium">Share</span>
+                    </button>
+
+                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-black hover:bg-gray-50 transition-all duration-200">
+                      <BookmarkPlus className="w-5 h-5" />
+                      <span className="font-medium">Bookmark</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            {/* Sidebar */}
+            <aside className="lg:col-span-1">
+              <div className="sticky top-8">
+                {/* Related Articles */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-black mb-4">Related Articles</h3>
+                  <div className="space-y-4">
+                    {relatedArticles.map((related) => (
+                      <div
+                        key={related.id}
+                        className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors group"
+                      >
+                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0 group-hover:scale-105 transition-transform"></div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-black text-sm line-clamp-2 mb-1 group-hover:text-gray-600 transition-colors">
+                            {related.title}
+                          </h4>
+                          <p className="text-xs text-gray-500 mb-1">{related.author}</p>
+                          <p className="text-xs text-gray-400">{related.readTime}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
         </div>
       </div>
     </Layout>

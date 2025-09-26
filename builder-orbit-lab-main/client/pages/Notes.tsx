@@ -49,24 +49,65 @@ export default function Notes() {
 
   useEffect(() => {
     setLoading(true);
+    setError("");
+    
     const params = new URLSearchParams({
       type: "note",
       page: currentPage.toString(),
       limit: itemsPerPage.toString(),
-      category: selectedCategory !== "all" ? selectedCategory : undefined,
-      color: selectedColor !== "all" ? selectedColor : undefined,
-      search: searchQuery || undefined,
-      sort: sortBy,
     });
+    
+    if (searchQuery.trim()) {
+      params.append('search', searchQuery.trim());
+    }
+    
+    if (selectedCategory !== "all") {
+      params.append('category', selectedCategory);
+    }
+    
+    if (selectedColor !== "all") {
+      params.append('color', selectedColor);
+    }
+    
+    params.append('sort', sortBy);
+    
     fetch(`/api/content?${params.toString()}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
-        setNotes(data.data || []);
+        // Transform API data to match Note interface
+        const transformedNotes = (data.data || []).map((note: any) => ({
+          id: note.id,
+          title: note.title,
+          content: note.content || note.description || '',
+          category: note.category_name || note.category || 'Uncategorized',
+          color: getRandomColor(), // Mock color since backend doesn't have this field
+          date: new Date(note.created_at).toLocaleDateString(),
+          author: note.author_name || 'Unknown Author',
+          pinned: note.featured || false,
+          tags: Array.isArray(note.tags) ? note.tags : (typeof note.tags === 'string' ? JSON.parse(note.tags || '[]') : []),
+          wordCount: note.word_count || 0
+        }));
+        setNotes(transformedNotes);
         setTotalNotes(data.total || 0);
       })
-      .catch(() => setError("Failed to fetch notes"))
+      .catch((err) => {
+        console.error("Error fetching notes:", err);
+        setError("Failed to fetch notes");
+        setNotes([]);
+        setTotalNotes(0);
+      })
       .finally(() => setLoading(false));
   }, [currentPage, itemsPerPage, selectedCategory, selectedColor, searchQuery, sortBy]);
+
+  const getRandomColor = () => {
+    const colors = ['yellow', 'blue', 'green', 'pink', 'purple', 'orange'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
 
   const categories = [
     "all",
@@ -74,24 +115,8 @@ export default function Notes() {
   ];
   const colors = ["all", ...Array.from(new Set(notes.map((n) => n.color)))];
 
-  // Bỏ filter/sort/paginate ở frontend, chỉ filter theo search/category nếu backend chưa hỗ trợ
-  const filteredNotes = notes.filter((note) => {
-      const matchesSearch =
-        searchQuery === "" ||
-        note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        note.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        note.tags.some((tag) =>
-          tag.toLowerCase().includes(searchQuery.toLowerCase()),
-        );
-      const matchesCategory =
-        selectedCategory === "all" || note.category === selectedCategory;
-      const matchesColor =
-        selectedColor === "all" || note.color === selectedColor;
-      return matchesSearch && matchesCategory && matchesColor;
-    });
-
   const totalPages = Math.ceil(totalNotes / itemsPerPage);
-  const paginatedNotes = filteredNotes; // Đã phân trang ở backend
+  const paginatedNotes = notes; // Đã phân trang và filter ở backend
 
   const gridCols =
     gridLayout === "2x2"
@@ -146,7 +171,7 @@ export default function Notes() {
             Browse personal notes and quick thoughts from the community
           </p>
           <p className="text-sm text-gray-500 mt-1">
-            {filteredNotes.length} notes available
+            {totalNotes} notes available
           </p>
         </div>
 
@@ -270,9 +295,9 @@ export default function Notes() {
       <div className="mb-6">
         <p className="text-gray-600">
           Showing{" "}
-          {Math.min((currentPage - 1) * itemsPerPage + 1, filteredNotes.length)}{" "}
-          to {Math.min(currentPage * itemsPerPage, filteredNotes.length)} of{" "}
-          {filteredNotes.length} notes
+          {Math.min((currentPage - 1) * itemsPerPage + 1, totalNotes)}{" "}
+          to {Math.min(currentPage * itemsPerPage, totalNotes)} of{" "}
+          {totalNotes} notes
           {searchQuery && ` matching "${searchQuery}"`}
         </p>
       </div>
@@ -282,6 +307,7 @@ export default function Notes() {
         {paginatedNotes.map((note) => (
           <div
             key={note.id}
+            onClick={() => navigate(`/notes/${note.id}`)}
             className={`${getColorClasses(note.color)} border rounded-lg p-6 hover:shadow-lg transition-all duration-200 cursor-pointer group min-h-[250px] relative`}
           >
             {/* Pin indicator */}
@@ -307,9 +333,10 @@ export default function Notes() {
             </h3>
 
             {/* Content */}
-            <p className="text-sm text-gray-700 line-clamp-6 mb-4 leading-relaxed">
-              {note.content}
-            </p>
+            <div 
+              className="text-sm text-gray-700 line-clamp-6 mb-4 leading-relaxed prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: note.content || '<p>No content available</p>' }}
+            />
 
             {/* Tags */}
             <div className="flex flex-wrap gap-1 mb-4">
@@ -407,7 +434,7 @@ export default function Notes() {
       )}
 
       {/* No Results */}
-      {filteredNotes.length === 0 && (
+      {notes.length === 0 && (
         <div className="text-center py-16">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <StickyNote className="w-8 h-8 text-gray-400" />

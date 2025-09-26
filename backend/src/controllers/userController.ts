@@ -22,4 +22,54 @@ export const UserController = {
   async remove(req: Request, res: Response) {
     res.status(204).send();
   },
+  async updateProfile(req: Request, res: Response) {
+    try {
+      const user = (req as any).user;
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { name, bio, location, website } = req.body;
+      
+      // Validate required fields
+      if (!name || name.trim() === '') {
+        return res.status(400).json({ error: 'Name is required' });
+      }
+
+      // Update user profile
+        await UserService.updateUserProfile(user.id, {
+          name: name.trim(),
+          bio: bio?.trim() || undefined,
+          location: location?.trim() || undefined,
+          website: website?.trim() || undefined,
+        });
+
+      res.json({ message: 'Profile updated successfully' });
+    } catch (error) {
+      console.error('Update profile error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+  async getUserStats(req: Request, res: Response) {
+    try {
+      const user = (req as any).user;
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const stats = await UserService.getUserStats(user.id);
+      res.json(stats);
+    } catch (error) {
+      console.error('Get user stats error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+  async getUserFavorites(req: Request, res: Response) {
+    try {
+      const user = (req as any).user;
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const favorites = await UserService.getUserFavorites(user.id);
+      res.json(favorites);
+    } catch (error) {
+      console.error('Get user favorites error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
 };

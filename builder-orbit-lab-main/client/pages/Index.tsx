@@ -2,15 +2,19 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import Layout from "../components/Layout";
 import { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 
 export default function Index() {
   const navigate = useNavigate();
   const [preview, setPreview] = useState({ articles: [], documents: [], notes: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showLearnMore, setShowLearnMore] = useState(false);
+  const [showSignUp, setShowSignUp] = useState(false);
+  const [showContactSales, setShowContactSales] = useState(false);
 
   useEffect(() => {
-    document.title = "ZetaScript - Organize Your Knowledge";
+    document.title = "ZetaScript - Content Management Platform";
     setLoading(true);
     fetch("/api/content/home-preview")
       .then(res => res.json())
@@ -59,8 +63,12 @@ export default function Index() {
               className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
               onClick={() => navigate(`/${title.toLowerCase()}/${item.id}`)}
             >
-              <div className="aspect-[4/3] bg-gray-200 flex items-center justify-center">
-                {/* Có thể thêm ảnh nếu có item.image */}
+              <div className="aspect-[4/3] bg-gray-200 flex items-center justify-center overflow-hidden">
+                <img 
+                  src="/unnamed.png" 
+                  alt={item.title || "Content image"}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="p-4">
                 <h3 className="font-medium text-gray-900 mb-2 line-clamp-2">{item.title}</h3>
@@ -98,7 +106,10 @@ export default function Index() {
           >
             Explore Articles
           </button>
-          <button className="px-8 py-3 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors">
+          <button 
+            onClick={() => setShowLearnMore(true)}
+            className="px-8 py-3 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
+          >
             Learn More
           </button>
         </div>
@@ -134,14 +145,134 @@ export default function Index() {
           ZetaScript.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button className="px-8 py-3 bg-white text-black rounded-full hover:bg-gray-100 transition-colors">
+          <button 
+            onClick={() => setShowSignUp(true)}
+            className="px-8 py-3 bg-white text-black rounded-full hover:bg-gray-100 transition-colors"
+          >
             Sign Up Free
           </button>
-          <button className="px-8 py-3 border border-gray-400 text-white rounded-full hover:bg-gray-800 transition-colors">
+          <button 
+            onClick={() => setShowContactSales(true)}
+            className="px-8 py-3 border border-gray-400 text-white rounded-full hover:bg-gray-800 transition-colors"
+          >
             Contact Sales
           </button>
         </div>
       </div>
+
+      {/* Learn More Dialog */}
+      <Dialog open={showLearnMore} onOpenChange={setShowLearnMore}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>About ZetaScript</DialogTitle>
+            <DialogDescription>
+              Learn more about our platform and features
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">What is ZetaScript?</h3>
+              <p className="text-gray-600">
+                ZetaScript is a comprehensive platform designed to help you organize, manage, and share your knowledge. 
+                Whether you're a writer, researcher, student, or professional, our tools make it easy to create, 
+                discover, and collaborate on content.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Key Features</h3>
+              <ul className="list-disc list-inside text-gray-600 space-y-1">
+                <li>Create and manage articles, documents, and notes</li>
+                <li>Advanced search and filtering capabilities</li>
+                <li>Collaborative features for team projects</li>
+                <li>Beautiful, responsive design</li>
+                <li>Secure cloud storage</li>
+                <li>Export and sharing options</li>
+              </ul>
+            </div>
+            <div className="flex justify-end">
+              <button 
+                onClick={() => setShowLearnMore(false)}
+                className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sign Up Dialog */}
+      <Dialog open={showSignUp} onOpenChange={setShowSignUp}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sign Up for Free</DialogTitle>
+            <DialogDescription>
+              Create your account to get started with ZetaScript
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-gray-600 text-center">
+              Click the button below to go to the login page where you can create a new account.
+            </p>
+            <div className="flex justify-center">
+              <button 
+                onClick={() => navigate("/login")}
+                className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Go to Login Page
+              </button>
+            </div>
+            <div className="flex justify-end">
+              <button 
+                onClick={() => setShowSignUp(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contact Sales Dialog */}
+      <Dialog open={showContactSales} onOpenChange={setShowContactSales}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Contact Sales</DialogTitle>
+            <DialogDescription>
+              Get in touch with our sales team for enterprise solutions
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-center">
+              <p className="text-gray-600 mb-4">
+                For enterprise inquiries and custom solutions, please contact us:
+              </p>
+              <div className="space-y-2">
+                <p className="font-medium">Email: sales@zetascript.com</p>
+                <p className="font-medium">Phone: +1 (555) 123-4567</p>
+                <p className="font-medium">Hours: Mon-Fri 9AM-6PM EST</p>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <button 
+                onClick={() => window.open('mailto:sales@zetascript.com?subject=Enterprise Inquiry', '_blank')}
+                className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Send Email
+              </button>
+            </div>
+            <div className="flex justify-end">
+              <button 
+                onClick={() => setShowContactSales(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

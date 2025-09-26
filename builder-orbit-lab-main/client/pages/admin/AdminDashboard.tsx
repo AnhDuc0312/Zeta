@@ -23,6 +23,11 @@ import AdminLayout from "../../components/AdminLayout";
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState("7d");
+  
+  // Set page title
+  useEffect(() => {
+    document.title = "Admin Dashboard - ZetaScript";
+  }, []);
   // Mock data gốc
   const mockStats = {
     totalUsers: 2847,
@@ -134,15 +139,24 @@ export default function AdminDashboard() {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
+        
         if (overviewRes.ok) {
           const overview = await overviewRes.json();
-          setStats({ ...mockStats, ...overview });
+          setStats(overview);
+        } else {
+          console.error('Failed to fetch overview:', overviewRes.status);
+          setStats(mockStats);
         }
+        
         if (contentRes.ok) {
           const content = await contentRes.json();
           setTopContent(content.topContent || mockTopContent);
+        } else {
+          console.error('Failed to fetch content:', contentRes.status);
+          setTopContent(mockTopContent);
         }
       } catch (err: any) {
+        console.error('Error fetching data:', err);
         setError(err.message || "Error fetching data");
         setStats(mockStats);
         setTopContent(mockTopContent);
@@ -205,7 +219,10 @@ export default function AdminDashboard() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Users</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {formatNumber(stats?.totalUsers)}
+                      {formatNumber(stats?.totalUsers || 0)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {stats?.activeUsers || 0} active users
                     </p>
                   </div>
                   <div className="p-3 bg-blue-100 rounded-lg">
@@ -231,7 +248,10 @@ export default function AdminDashboard() {
                       Total Content
                     </p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {formatNumber(stats?.totalContent)}
+                      {formatNumber(stats?.totalContent || 0)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {stats?.articles || 0} articles, {stats?.documents || 0} docs, {stats?.notes || 0} notes
                     </p>
                   </div>
                   <div className="p-3 bg-green-100 rounded-lg">
@@ -268,13 +288,25 @@ export default function AdminDashboard() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Views</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {formatNumber(stats?.totalViews)}
+                      {formatNumber(stats?.totalViews || 0)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {stats?.published || 0} published, {stats?.draft || 0} drafts
                     </p>
                   </div>
                   <div className="p-3 bg-yellow-100 rounded-lg">
                     <Eye className="w-6 h-6 text-yellow-600" />
                   </div>
                 </div>
+                {stats?.viewGrowth && (
+                  <div className="flex items-center gap-2 mt-4">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                    <span className="text-sm text-green-600 font-medium">
+                      +{stats.viewGrowth}%
+                    </span>
+                    <span className="text-sm text-gray-500">vs last period</span>
+                  </div>
+                )}
               </div>
             </div>
 

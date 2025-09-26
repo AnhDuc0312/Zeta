@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import AdminLayout from "../../components/AdminLayout";
 import { useAuth } from "../../contexts/AuthContext";
+import { markdownToHtml, processImageUrls, enhanceContent } from "../../lib/markdown";
 // XÓA: import Select from "react-select";
 
 // THÊM COMPONENT CUSTOM MULTI-SELECT TAGS
@@ -89,6 +90,11 @@ function TagsMultiSelect({ tags, value, onChange }: {
 export default function CreateContent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  
+  // Set page title
+  useEffect(() => {
+    document.title = "Create Content - ZetaScript";
+  }, []);
   const contentType = (searchParams.get("type") || "article") as
     | "article"
     | "document"
@@ -100,6 +106,7 @@ export default function CreateContent() {
     description: "",
     content: "",
     category: "",
+    category_id: "",
     tags: "" as string | string[],
     status: "draft",
     featured: false,
@@ -109,12 +116,16 @@ export default function CreateContent() {
     seoDescription: "",
     customUrl: "",
     author: "",
+    file_url: "",
+    file_size: "",
+    word_count: 0,
   });
 
   const [activeTab, setActiveTab] = useState("content");
   const [isPreview, setIsPreview] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   useEffect(() => {
     if (user && !formData.author) {
@@ -144,20 +155,119 @@ export default function CreateContent() {
     fetchData();
   }, []);
 
+  // Function to calculate word count
+  const calculateWordCount = (text: string) => {
+    if (!text) return 0;
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  };
+
+  // Function to insert markdown formatting
+  const insertMarkdown = (before: string, after: string) => {
+    const textarea = document.querySelector('textarea[name="content"]') as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = formData.content.substring(start, end);
+    const newText = formData.content.substring(0, start) + before + selectedText + after + formData.content.substring(end);
+    
+    setFormData(prev => ({
+      ...prev,
+      content: newText,
+      word_count: calculateWordCount(newText)
+    }));
+
+    // Focus back to textarea and set cursor position
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, end + before.length);
+    }, 0);
+  };
+
+  // Function to handle image upload
+  const handleImageUpload = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        setIsUploadingImage(true);
+        try {
+          // Upload to server
+          const formData = new FormData();
+          formData.append('file', file);
+          
+          const token = localStorage.getItem('token');
+          const response = await fetch('http://localhost:4000/api/upload', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            // Use full URL for the image
+            const imageUrl = `http://localhost:4000${data.url}`;
+            insertMarkdown(`![${file.name}](${imageUrl})`, '');
+          } else {
+            console.error('Upload failed:', response.statusText);
+            // Fallback to local URL if upload fails
+            const imageUrl = URL.createObjectURL(file);
+            insertMarkdown(`![${file.name}](${imageUrl})`, '');
+          }
+        } catch (error) {
+          console.error('Upload failed:', error);
+          // Fallback to local URL
+          const imageUrl = URL.createObjectURL(file);
+          insertMarkdown(`![${file.name}](${imageUrl})`, '');
+        } finally {
+          setIsUploadingImage(false);
+        }
+      }
+    };
+    input.click();
+  };
+
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
   ) => {
     const { name, value, type } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
-    }));
+    setFormData((prev) => {
+      const newData = {
+        ...prev,
+        [name]:
+          type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+      };
+      
+      // Calculate word count when content changes
+      if (name === "content") {
+        newData.word_count = calculateWordCount(value);
+      }
+      
+      return newData;
+    });
   };
 
   const handleSave = async (status: "draft" | "published") => {
+    // Validate required fields
+    if (!formData.title.trim()) {
+      alert('Title is required');
+      return;
+    }
+    if (!formData.content.trim()) {
+      alert('Content is required');
+      return;
+    }
+    if (!formData.category) {
+      alert('Category is required');
+      return;
+    }
+    
     // Chuẩn hóa tags: nếu là chuỗi thì tách thành mảng
     let tags = formData.tags;
     if (typeof tags === "string") {
@@ -167,21 +277,40 @@ export default function CreateContent() {
         .filter((t) => t);
     }
     if (!Array.isArray(tags)) tags = [];
+    // Find category_id from selected category
+    const selectedCategory = categories.find(cat => cat.name === formData.category);
+    
     const contentData = {
       ...formData,
       tags,
       status,
       type: contentType,
       author: user?.name || formData.author || "",
+      category_id: selectedCategory?.id || formData.category_id || "",
+      author_id: user?.id || "",
+      author_email: user?.email || "",
+      // Remove fields that shouldn't be sent to backend
+      category: undefined,
     };
     try {
-      await fetch('/api/content', {
+      const token = localStorage.getItem("token");
+      const response = await fetch('/api/content', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(contentData),
       });
-      navigate('/admin/content');
-    } catch {
+      
+      if (response.ok) {
+        navigate('/admin/content');
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to save content: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Save content error:', error);
       alert('Failed to save content');
     }
   };
@@ -386,40 +515,87 @@ export default function CreateContent() {
                     <div className="border border-gray-300 rounded-t-lg bg-gray-50 p-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="flex items-center gap-1">
-                          <button className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded">
+                          <button 
+                            type="button"
+                            onClick={() => insertMarkdown('**', '**')}
+                            className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded"
+                            title="Bold"
+                          >
                             <Bold className="w-4 h-4" />
                           </button>
-                          <button className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded">
+                          <button 
+                            type="button"
+                            onClick={() => insertMarkdown('*', '*')}
+                            className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded"
+                            title="Italic"
+                          >
                             <Italic className="w-4 h-4" />
                           </button>
-                          <button className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded">
+                          <button 
+                            type="button"
+                            onClick={() => insertMarkdown('<u>', '</u>')}
+                            className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded"
+                            title="Underline"
+                          >
                             <Underline className="w-4 h-4" />
                           </button>
                         </div>
                         <div className="h-6 border-l border-gray-300"></div>
                         <div className="flex items-center gap-1">
-                          <button className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded">
+                          <button 
+                            type="button"
+                            onClick={() => insertMarkdown('- ', '')}
+                            className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded"
+                            title="Bullet List"
+                          >
                             <List className="w-4 h-4" />
                           </button>
-                          <button className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded">
+                          <button 
+                            type="button"
+                            onClick={() => insertMarkdown('1. ', '')}
+                            className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded"
+                            title="Numbered List"
+                          >
                             <ListOrdered className="w-4 h-4" />
                           </button>
-                          <button className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded">
+                          <button 
+                            type="button"
+                            onClick={() => insertMarkdown('> ', '')}
+                            className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded"
+                            title="Quote"
+                          >
                             <Quote className="w-4 h-4" />
                           </button>
                         </div>
                         <div className="h-6 border-l border-gray-300"></div>
                         <div className="flex items-center gap-1">
-                          <button className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded">
+                          <button 
+                            type="button"
+                            onClick={() => insertMarkdown('[Link Text](', ')')}
+                            className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded"
+                            title="Insert Link"
+                          >
                             <Link className="w-4 h-4" />
                           </button>
-                          <button className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded">
-                            <Image className="w-4 h-4" />
+                          <button 
+                            type="button"
+                            onClick={handleImageUpload}
+                            disabled={isUploadingImage}
+                            className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={isUploadingImage ? "Uploading..." : "Insert Image"}
+                          >
+                            {isUploadingImage ? (
+                              <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                            ) : (
+                              <Image className="w-4 h-4" />
+                            )}
                           </button>
-                          <button className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded">
-                            <Video className="w-4 h-4" />
-                          </button>
-                          <button className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded">
+                          <button 
+                            type="button"
+                            onClick={() => insertMarkdown('```\n', '\n```')}
+                            className="p-2 text-gray-600 hover:text-black hover:bg-gray-200 rounded"
+                            title="Code Block"
+                          >
                             <Code className="w-4 h-4" />
                           </button>
                         </div>
@@ -448,6 +624,11 @@ You can use Markdown syntax:
                       className="w-full px-4 py-3 border-x border-b border-gray-300 rounded-b-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                       required
                     />
+                    {/* Word Count Display */}
+                    <div className="flex justify-between items-center mt-2 text-sm text-gray-500">
+                      <span>Word count: {formData.word_count}</span>
+                      <span>Characters: {formData.content.length}</span>
+                    </div>
                   </div>
 
                   {/* File Upload for Documents */}
@@ -462,13 +643,34 @@ You can use Markdown syntax:
                           Drop your file here or click to browse
                         </p>
                         <p className="text-sm text-gray-500">
-                          Supports PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX (Max:
-                          10MB)
+                          Supports PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX (Max: 10MB)
                         </p>
-                        <input type="file" className="hidden" />
-                        <button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          id="file-upload"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setFormData(prev => ({
+                                ...prev,
+                                file_url: file.name,
+                                file_size: file.size.toString()
+                              }));
+                            }
+                          }}
+                        />
+                        <label 
+                          htmlFor="file-upload"
+                          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer inline-block"
+                        >
                           Choose File
-                        </button>
+                        </label>
+                        {formData.file_url && (
+                          <div className="mt-2 text-sm text-green-600">
+                            Selected: {formData.file_url} ({(parseInt(formData.file_size) / 1024 / 1024).toFixed(2)} MB)
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -644,15 +846,18 @@ You can use Markdown syntax:
               {isPreview && (
                 <div className="p-6">
                   <div className="prose max-w-none">
-                    <h1>{formData.title || "Untitled"}</h1>
+                    <h1 className="text-3xl font-bold mb-4">{formData.title || "Untitled"}</h1>
                     {formData.description && (
-                      <p className="lead text-gray-600">
+                      <p className="text-lg text-gray-600 mb-6">
                         {formData.description}
                       </p>
                     )}
-                    <div className="whitespace-pre-wrap">
-                      {formData.content || "No content yet..."}
-                    </div>
+                    <div 
+                      className="prose prose-lg max-w-none"
+                      dangerouslySetInnerHTML={{ 
+                        __html: enhanceContent(processImageUrls(markdownToHtml(formData.content || '')))
+                      }} 
+                    />
                   </div>
                 </div>
               )}

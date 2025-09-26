@@ -28,6 +28,9 @@ app.use('/api/health', publicLimiter);
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static('public/uploads'));
+
 // Mount all API routes
 app.use('/api', routes);
 setupSwagger(app);

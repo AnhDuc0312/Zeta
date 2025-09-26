@@ -78,6 +78,11 @@ interface ContentItem {
 
 export default function AdminContent() {
   const navigate = useNavigate();
+  
+  // Set page title
+  useEffect(() => {
+    document.title = "Content Management - ZetaScript";
+  }, []);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [activeTab, setActiveTab] = useState<
     "all" | "articles" | "documents" | "notes"
@@ -97,6 +102,17 @@ export default function AdminContent() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [stats, setStats] = useState({
+    total: 0,
+    articles: 0,
+    documents: 0,
+    notes: 0,
+    published: 0,
+    draft: 0,
+    private: 0,
+    archived: 0,
+    totalViews: 0,
+  });
 
   // Thêm state quản lý confirm dialog
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -111,12 +127,41 @@ export default function AdminContent() {
     setConfirmDialog({ open: true, title, description, onConfirm });
   };
 
+  // Hàm hiển thị message popup
+  const showMessagePopup = (title: string, description: string, type: "info" | "success" | "error" = "info") => {
+    setMessage({ title, description, type });
+    setShowMessage(true);
+  };
+
   // State cho popup preview content
   const [previewContent, setPreviewContent] = useState<ContentItem | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
   // State cho more menu (nếu muốn highlight item đang mở menu)
   const [moreMenuId, setMoreMenuId] = useState<string | null>(null);
+  
+  // State cho popup messages
+  const [showMessage, setShowMessage] = useState(false);
+  const [message, setMessage] = useState({ title: "", description: "", type: "info" as "info" | "success" | "error" });
+
+  // Fetch stats on component mount
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch('/api/content/stats', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setStats(data);
+        }
+      } catch (err) {
+        console.error('Error fetching stats:', err);
+      }
+    }
+    fetchStats();
+  }, []);
 
   useEffect(() => {
     async function fetchContent() {
@@ -124,17 +169,72 @@ export default function AdminContent() {
       setError("");
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`/api/content?page=${currentPage}&limit=${itemsPerPage}`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store", // Tắt cache để luôn nhận response mới
+        
+        // Build query parameters
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: itemsPerPage.toString(),
         });
-        if (res.status === 304) {
-          setLoading(false);
-          return;
+        
+        // Add type filter if not "all"
+        if (activeTab !== "all") {
+          params.append('type', activeTab.slice(0, -1)); // Remove 's' from articles/documents/notes
         }
+        
+        // Add search filter
+        if (searchQuery.trim()) {
+          params.append('search', searchQuery.trim());
+        }
+        
+        // Add status filter
+        if (filterStatus !== "all") {
+          params.append('status', filterStatus);
+        }
+        
+        // Add category filter
+        if (filterCategory !== "all") {
+          params.append('category', filterCategory);
+        }
+        
+        // Add sort
+        params.append('sort', sortBy);
+        
+        const res = await fetch(`/api/content?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        
         if (!res.ok) throw new Error("Failed to fetch content");
         const data = await res.json();
-        setContent(data.data || []);
+        
+        // Transform data to match interface
+        const transformedContent = (data.data || []).map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          type: item.type,
+          status: item.status,
+          author: item.author_name || 'Unknown Author',
+          authorEmail: item.author_email || '',
+          createdAt: item.created_at,
+          updatedAt: item.updated_at,
+          publishedAt: item.published_at,
+          views: item.views || 0,
+          likes: item.likes || 0,
+          comments: item.comments || 0,
+          category: item.category_name || 'Uncategorized',
+          tags: Array.isArray(item.tags) ? item.tags : (typeof item.tags === 'string' ? JSON.parse(item.tags || '[]') : []),
+          description: item.description || '',
+          featured: item.featured || false,
+          wordCount: item.word_count || 0,
+          fileSize: item.file_size ? formatFileSize(item.file_size) : undefined,
+          content: item.content,
+          allowComments: item.allow_comments !== false,
+          seoTitle: item.seo_title,
+          seoDescription: item.seo_description,
+          customUrl: item.custom_url,
+        }));
+        
+        setContent(transformedContent);
         setTotal(data.total || 0);
       } catch (err: any) {
         setError(err.message || "Error fetching content");
@@ -143,38 +243,27 @@ export default function AdminContent() {
       }
     }
     fetchContent();
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, itemsPerPage, activeTab, searchQuery, filterStatus, filterCategory, sortBy]);
 
-  // Filter/search vẫn thực hiện ở frontend
+  // Backend handles all filtering and pagination
   const { filteredContent, paginatedContent, totalPages } = useMemo(() => {
-    const filtered = content
-      .filter((item) => {
-        const matchesTab =
-          activeTab === "all" || item.type === activeTab.slice(0, -1);
-        const matchesSearch =
-          searchQuery === "" ||
-          item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.author?.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus =
-          filterStatus === "all" || item.status === filterStatus;
-        return matchesTab && matchesSearch && matchesStatus;
-      });
-    // Phân trang frontend chỉ khi backend chưa hỗ trợ
-    const paginated = filtered;
+    const filtered = content; // No frontend filtering needed
+    const paginated = content; // Backend already paginated
     const totalPages = Math.ceil(total / itemsPerPage);
     return { filteredContent: filtered, paginatedContent: paginated, totalPages };
-  }, [content, activeTab, searchQuery, filterStatus, itemsPerPage, total]);
+  }, [content, total, itemsPerPage]);
 
-  const stats = {
-    total: content.length,
-    published: content.filter((c) => c.status === "published").length,
-    draft: content.filter((c) => c.status === "draft").length,
-    private: content.filter((c) => c.status === "private").length,
-    archived: content.filter((c) => c.status === "archived").length,
-    articles: content.filter((c) => c.type === "article").length,
-    documents: content.filter((c) => c.type === "document").length,
-    notes: content.filter((c) => c.type === "note").length,
+  // Use stats from API instead of calculating from current content
+  const displayStats = {
+    total: stats.total,
+    published: stats.published,
+    draft: stats.draft,
+    private: stats.private,
+    archived: stats.archived,
+    articles: stats.articles,
+    documents: stats.documents,
+    notes: stats.notes,
+    totalViews: stats.totalViews,
   };
 
   const getTypeIcon = (type: string) => {
@@ -242,7 +331,7 @@ export default function AdminContent() {
           setContent((prev) => prev.filter((c) => c.id !== id));
           setTotal((prev) => prev - 1);
         } catch (err: any) {
-          alert(err.message || "Error deleting content");
+          showMessagePopup("Error", err.message || "Error deleting content", "error");
         }
       }
     );
@@ -279,11 +368,19 @@ export default function AdminContent() {
     return num.toString();
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   const tabs = [
-    { id: "all", label: "All Content", count: stats.total },
-    { id: "articles", label: "Articles", count: stats.articles },
-    { id: "documents", label: "Documents", count: stats.documents },
-    { id: "notes", label: "Notes", count: stats.notes },
+    { id: "all", label: "All Content", count: displayStats.total },
+    { id: "articles", label: "Articles", count: displayStats.articles },
+    { id: "documents", label: "Documents", count: displayStats.documents },
+    { id: "notes", label: "Notes", count: displayStats.notes },
   ];
 
   // Publish content
@@ -301,7 +398,7 @@ export default function AdminContent() {
           if (!res.ok) throw new Error("Failed to publish content");
           setContent((prev) => prev.map((c) => c.id === id ? { ...c, status: "published" } : c));
         } catch (err: any) {
-          alert(err.message || "Error publishing content");
+          showMessagePopup("Error", err.message || "Error publishing content", "error");
         }
       }
     );
@@ -321,7 +418,7 @@ export default function AdminContent() {
           if (!res.ok) throw new Error("Failed to archive content");
           setContent((prev) => prev.map((c) => c.id === id ? { ...c, status: "archived" } : c));
         } catch (err: any) {
-          alert(err.message || "Error archiving content");
+          showMessagePopup("Error", err.message || "Error archiving content", "error");
         }
       }
     );
@@ -341,7 +438,7 @@ export default function AdminContent() {
           if (!res.ok) throw new Error("Failed to duplicate content");
           setCurrentPage(1);
         } catch (err: any) {
-          alert(err.message || "Error duplicating content");
+          showMessagePopup("Error", err.message || "Error duplicating content", "error");
         }
       }
     );
@@ -371,11 +468,17 @@ export default function AdminContent() {
             </p>
           </div>
           <div className="flex items-center gap-3 mt-4 lg:mt-0">
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+            <button 
+              onClick={() => showMessagePopup("Import Content", "Import feature is coming soon! You'll be able to import content from various formats like CSV, JSON, and Markdown files.", "info")}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
               <Upload className="w-4 h-4" />
               Import
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+            <button 
+              onClick={() => showMessagePopup("Export Content", "Export feature is coming soon! You'll be able to export content in various formats like CSV, JSON, PDF, and Markdown.", "info")}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
               <Download className="w-4 h-4" />
               Export
             </button>
@@ -397,7 +500,7 @@ export default function AdminContent() {
               <div>
                 <p className="text-sm text-gray-600">Total Content</p>
                 <p className="text-xl font-semibold text-gray-900">
-                  {stats.total}
+                  {displayStats.total}
                 </p>
               </div>
             </div>
@@ -408,7 +511,7 @@ export default function AdminContent() {
               <div>
                 <p className="text-sm text-gray-600">Published</p>
                 <p className="text-xl font-semibold text-gray-900">
-                  {stats.published}
+                  {displayStats.published}
                 </p>
               </div>
             </div>
@@ -419,7 +522,7 @@ export default function AdminContent() {
               <div>
                 <p className="text-sm text-gray-600">Drafts</p>
                 <p className="text-xl font-semibold text-gray-900">
-                  {stats.draft}
+                  {displayStats.draft}
                 </p>
               </div>
             </div>
@@ -430,9 +533,7 @@ export default function AdminContent() {
               <div>
                 <p className="text-sm text-gray-600">Total Views</p>
                 <p className="text-xl font-semibold text-gray-900">
-                  {formatNumber(
-                    content.reduce((sum, item) => sum + item.views, 0),
-                  )}
+                  {formatNumber(displayStats.totalViews)}
                 </p>
               </div>
             </div>
@@ -879,8 +980,8 @@ export default function AdminContent() {
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => alert("Export feature coming soon!")}>Export</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => alert("View log feature coming soon!")}>View Log</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => showMessagePopup("Export", "Export feature is coming soon! You'll be able to export content in various formats.", "info")}>Export</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => showMessagePopup("View Log", "View log feature is coming soon! You'll be able to see detailed activity logs for each content item.", "info")}>View Log</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -969,7 +1070,13 @@ export default function AdminContent() {
 
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <button className="p-1 text-gray-400 hover:text-blue-600">
+                          <button 
+                            onClick={() => {
+                              setPreviewContent(item);
+                              setShowPreview(true);
+                            }}
+                            className="p-1 text-gray-400 hover:text-blue-600"
+                          >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button onClick={() => handleEditContent(item.id)} className="p-1 text-gray-400 hover:text-green-600">
@@ -979,9 +1086,20 @@ export default function AdminContent() {
                             <Copy className="w-4 h-4" />
                           </button>
                         </div>
-                        <button className="p-1 text-gray-400 hover:text-gray-600">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button 
+                              className="p-1 text-gray-400 hover:text-gray-600"
+                              onClick={() => setMoreMenuId(item.id)}
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => showMessagePopup("Export", "Export feature is coming soon! You'll be able to export content in various formats.", "info")}>Export</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => showMessagePopup("View Log", "View log feature is coming soon! You'll be able to see detailed activity logs for each content item.", "info")}>View Log</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </div>
@@ -1156,6 +1274,39 @@ export default function AdminContent() {
             <div className="mt-4 text-xs text-gray-400">
               Last updated: {previewContent?.updatedAt ? new Date(previewContent.updatedAt).toLocaleString() : ""}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Message Dialog */}
+      <Dialog open={showMessage} onOpenChange={setShowMessage}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className={`flex items-center gap-2 ${
+              message.type === 'error' ? 'text-red-600' : 
+              message.type === 'success' ? 'text-green-600' : 
+              'text-blue-600'
+            }`}>
+              {message.type === 'error' && <XCircle className="w-5 h-5" />}
+              {message.type === 'success' && <CheckCircle className="w-5 h-5" />}
+              {message.type === 'info' && <AlertCircle className="w-5 h-5" />}
+              {message.title}
+            </DialogTitle>
+            <DialogDescription>
+              {message.description}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <button 
+              onClick={() => setShowMessage(false)}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                message.type === 'error' ? 'bg-red-600 text-white hover:bg-red-700' :
+                message.type === 'success' ? 'bg-green-600 text-white hover:bg-green-700' :
+                'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              OK
+            </button>
           </div>
         </DialogContent>
       </Dialog>

@@ -29,7 +29,17 @@ export const ContentController = {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 18;
     const type = req.query.type as string | undefined;
-    const { data, total } = await ContentService.getContentWithPagination(page, limit, type);
+    
+    // Extract filters from query parameters
+    const filters: any = {};
+    if (req.query.search) filters.search = req.query.search;
+    if (req.query.category) filters.category = req.query.category;
+    if (req.query.file_type) filters.file_type = req.query.file_type;
+    if (req.query.color) filters.color = req.query.color;
+    if (req.query.sort) filters.sort = req.query.sort;
+    if (req.query.status) filters.status = req.query.status;
+    
+    const { data, total } = await ContentService.getContentWithPagination(page, limit, type, filters);
     res.json({ data, total, page, limit });
   },
   async get(req: Request, res: Response) {
@@ -81,7 +91,37 @@ export const ContentController = {
     res.status(204).send();
   },
   async like(req: Request, res: Response) {
-    res.json({ message: 'Content liked (stub)' });
+    try {
+      const userId = (req as any).user.id;
+      const contentId = req.params.id;
+      await ContentService.likeContent(userId, contentId);
+      res.json({ message: 'Content liked successfully' });
+    } catch (error) {
+      console.error('Like content error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+  async unlike(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const contentId = req.params.id;
+      await ContentService.unlikeContent(userId, contentId);
+      res.json({ message: 'Content unliked successfully' });
+    } catch (error) {
+      console.error('Unlike content error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+  async getLikeStatus(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const contentId = req.params.id;
+      const isLiked = await ContentService.getLikeStatus(userId, contentId);
+      res.json({ isLiked });
+    } catch (error) {
+      console.error('Get like status error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   },
   async bookmark(req: Request, res: Response) {
     res.json({ message: 'Content bookmarked (stub)' });
@@ -91,5 +131,21 @@ export const ContentController = {
     const documents = await ContentService.getLatestByType('document', 2);
     const notes = await ContentService.getLatestByType('note', 2);
     res.json({ articles, documents, notes });
+  },
+  async getStats(req: Request, res: Response) {
+    const stats = await ContentService.getContentStats();
+    res.json(stats);
+  },
+  async incrementView(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { userId } = req.body; // Optional: track which user viewed
+      
+      await ContentService.incrementView(id, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Increment view error:', error);
+      res.status(500).json({ error: 'Failed to increment view' });
+    }
   },
 };

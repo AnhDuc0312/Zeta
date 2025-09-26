@@ -23,6 +23,11 @@ async function normalizeContentPayload(data: any, req?: any) {
     }
     delete normalized.category;
   }
+  
+  // Ensure category_id is valid UUID or use default
+  if (!normalized.category_id || normalized.category_id === '') {
+    normalized.category_id = DEFAULT_CATEGORY_ID;
+  }
   // Đảm bảo tags là mảng
   if (typeof normalized.tags === 'string') {
     if (normalized.tags.trim() === '') normalized.tags = [];
@@ -97,8 +102,8 @@ export const ContentService = {
     }
     return await ContentRepository.findAll();
   },
-  async getContentWithPagination(page: number, limit: number, type?: string) {
-    return await ContentRepository.findAllWithPagination(page, limit, type);
+  async getContentWithPagination(page: number, limit: number, type?: string, filters?: any) {
+    return await ContentRepository.findAllWithPagination(page, limit, type, filters);
   },
   async getContentById(id: string) {
     return await ContentRepository.findById(id);
@@ -125,5 +130,20 @@ export const ContentService = {
   },
   async getLatestByType(type: string, limit: number) {
     return await ContentRepository.findLatestByType(type, limit);
+  },
+  async likeContent(userId: string, contentId: string) {
+    return await ContentRepository.likeContent(userId, contentId);
+  },
+  async unlikeContent(userId: string, contentId: string) {
+    return await ContentRepository.unlikeContent(userId, contentId);
+  },
+  async getLikeStatus(userId: string, contentId: string) {
+    return await ContentRepository.getLikeStatus(userId, contentId);
+  },
+  async getContentStats() {
+    return await ContentRepository.getContentStats();
+  },
+  async incrementView(contentId: string, userId?: string) {
+    return await ContentRepository.incrementView(contentId, userId);
   },
 };

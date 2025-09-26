@@ -14,7 +14,7 @@ interface AuthContextType {
   isAdmin: boolean;
   loading: boolean;
   login: (userData: User, tokenValue?: string) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -61,19 +61,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = (userData: User, tokenValue?: string) => {
+    console.log("AuthContext login called with:", userData, tokenValue); // Debug log
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
     if (tokenValue) {
       setToken(tokenValue);
       localStorage.setItem("token", tokenValue);
     }
+    console.log("AuthContext login completed, user set to:", userData); // Debug log
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
+  const logout = async () => {
+    try {
+      // Gọi API logout trên server nếu có token
+      const token = localStorage.getItem("token");
+      if (token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Logout API error:', error);
+      // Vẫn tiếp tục logout local dù API có lỗi
+    } finally {
+      // Luôn xóa local data
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+    }
   };
 
   // Check if user is admin (role)

@@ -1,6 +1,7 @@
 import express from 'express';
 import { ContentController } from '../controllers/contentController';
 import { validateContent, handleValidation } from '../controllers/contentController';
+import { authenticateJWT } from '../middleware/authMiddleware';
 const router = express.Router();
 
 /**
@@ -100,8 +101,10 @@ const router = express.Router();
  */
 router.get('/', ContentController.list);
 router.get('/home-preview', ContentController.homePreview);
+router.get('/stats', ContentController.getStats);
 router.get('/:id', ContentController.get);
-router.post('/', validateContent, handleValidation, ContentController.create);
+router.post('/:id/view', ContentController.incrementView);
+router.post('/', authenticateJWT, validateContent, handleValidation, ContentController.create);
 router.put('/:id', validateContent, handleValidation, ContentController.update);
 router.delete('/:id', ContentController.remove);
 router.post('/:id/publish', ContentController.publish);
@@ -214,7 +217,9 @@ router.post('/:id/duplicate', ContentController.duplicate);
 router.get('/:id/comments', ContentController.listComments);
 router.post('/:id/comments', ContentController.addComment);
 router.delete('/comments/:commentId', ContentController.deleteComment);
-router.post('/:id/like', ContentController.like);
+router.post('/:id/like', authenticateJWT, ContentController.like);
+router.delete('/:id/like', authenticateJWT, ContentController.unlike);
+router.get('/:id/like-status', authenticateJWT, ContentController.getLikeStatus);
 router.post('/:id/bookmark', ContentController.bookmark);
 
 export default router;

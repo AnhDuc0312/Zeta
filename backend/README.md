@@ -1,279 +1,384 @@
 # Builder Orbit Lab Backend
 
-## 1. Giới thiệu
+Express.js API server cho hệ thống quản lý nội dung Zeta, cung cấp RESTful APIs cho frontend React.
 
-Đây là project backend RESTful API cho hệ thống quản lý nội dung, người dùng, phân quyền, analytics, upload, v.v.
-- **Ngôn ngữ:** TypeScript (Node.js, Express)
-- **Database:** PostgreSQL
-- **Kiến trúc:** Service/Repository, chuẩn hóa code, test, bảo mật, phân trang, validate input, rate limit, JWT Auth.
+## 🏗️ Architecture
 
----
+```
+src/
+├── controllers/        # API Controllers (Business Logic)
+├── models/            # TypeScript Interfaces
+├── routes/            # Express Routes
+├── services/          # Business Logic Services
+├── repositories/      # Data Access Layer
+├── middleware/        # Express Middleware
+├── db.ts             # PostgreSQL Connection
+├── index.ts          # Main App Setup
+└── server.ts         # Server Entry Point
+```
 
-## 2. Cài đặt & Khởi động
+## 🚀 Quick Start
 
-### 2.1. Yêu cầu
-- Node.js >= 18 (khuyến nghị Node 20+)
-- PostgreSQL >= 13
-- npm >= 8
+### 1. Cài đặt Dependencies
 
-### 2.2. Clone & Cài đặt
 ```bash
-git clone <repo-url>
-cd builder-orbit-lab-main/backend
 npm install
 ```
 
-### 2.3. Cấu hình biến môi trường
+### 2. Cấu hình Environment
 
-Tạo file `.env` (hoặc copy từ `.env.example` nếu có):
+Tạo file `.env`:
 
 ```env
-DATABASE_URL=postgres://user:password@localhost:5432/dbname
-JWT_SECRET=your_jwt_secret
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/zetadb
+
+# Server
 PORT=4000
 NODE_ENV=development
+
+# JWT
+JWT_SECRET=your_super_secret_jwt_key_here
+
+# File Upload
+UPLOAD_DIR=./public/uploads
+MAX_FILE_SIZE=10485760
 ```
 
-### 2.4. Khởi động server
+### 3. Setup Database
 
 ```bash
-npm run dev      # Chạy dev (hot reload)
-npm start        # Chạy production
+# Tạo database
+psql -U postgres -c "CREATE DATABASE zetadb;"
+
+# Chạy schema
+psql -U postgres -d zetadb -f ../builder-orbit-lab-main/schema.sql
+
+# Seed mock data (optional)
+npm run seed
 ```
-Server mặc định chạy ở `http://localhost:4000`
 
----
+### 4. Chạy Development Server
 
-## 3. Database & Seed dữ liệu
-
-- Kết nối DB qua biến `DATABASE_URL`.
-- Đã có script seed dữ liệu mock, tự động chuyển đổi id sang UUID, đồng bộ liên kết.
-- Để seed lại dữ liệu:
   ```bash
-  npm run seed
-  ```
-- Đảm bảo đã tạo các bảng, cột (xem migration hoặc schema mẫu).
+npm run dev
+```
 
----
+Server sẽ chạy trên `http://localhost:4000`
 
-## 4. Test tự động
+## 📊 Database Schema
 
-- Sử dụng Jest + Supertest.
-- Chạy toàn bộ test:
+### Core Tables
+
+- **users** - User accounts và profiles
+- **content** - Articles, documents, notes
+- **categories** - Content categories
+- **tags** - Content tags
+- **comments** - User comments
+- **activity_logs** - User activity tracking
+- **analytics_events** - Analytics data
+- **settings** - System settings
+
+### Key Relationships
+
+- Users → Content (1:many)
+- Content → Categories (many:many)
+- Content → Tags (many:many)
+- Users → Comments (1:many)
+- Content → Comments (1:many)
+
+## 🔌 API Endpoints
+
+### Authentication
+```
+POST   /api/auth/login          # User login
+POST   /api/auth/register       # User registration
+POST   /api/auth/logout         # User logout
+GET    /api/auth/me            # Get current user
+```
+
+### Content Management
+```
+GET    /api/content            # Get all content
+GET    /api/content/:id        # Get content by ID
+POST   /api/content            # Create content
+PUT    /api/content/:id        # Update content
+DELETE /api/content/:id        # Delete content
+```
+
+### User Management
+```
+GET    /api/users              # Get all users
+GET    /api/users/:id          # Get user by ID
+PUT    /api/users/:id          # Update user
+DELETE /api/users/:id          # Delete user
+```
+
+### Categories & Tags
+```
+GET    /api/categories         # Get all categories
+POST   /api/categories         # Create category
+PUT    /api/categories/:id     # Update category
+DELETE /api/categories/:id     # Delete category
+
+GET    /api/tags              # Get all tags
+POST   /api/tags              # Create tag
+PUT    /api/tags/:id          # Update tag
+DELETE /api/tags/:id          # Delete tag
+```
+
+### Comments
+```
+GET    /api/comments          # Get all comments
+GET    /api/comments/:id      # Get comment by ID
+POST   /api/comments          # Create comment
+PUT    /api/comments/:id      # Update comment
+DELETE /api/comments/:id      # Delete comment
+```
+
+### Search
+```
+GET    /api/search            # Search content
+GET    /api/search/users      # Search users
+```
+
+### File Upload
+```
+POST   /api/upload            # Upload file
+GET    /api/upload/:filename  # Get uploaded file
+```
+
+### Analytics
+```
+GET    /api/analytics-events  # Get analytics events
+POST   /api/analytics-events  # Create analytics event
+GET    /api/activity-logs     # Get activity logs
+POST   /api/activity-logs     # Create activity log
+```
+
+### Admin Endpoints
+```
+GET    /api/admin/users       # Admin: Get all users
+PUT    /api/admin/users/:id   # Admin: Update user
+DELETE /api/admin/users/:id   # Admin: Delete user
+
+GET    /api/admin/analytics   # Admin: Get analytics
+GET    /api/admin/activity-logs # Admin: Get activity logs
+GET    /api/admin/settings    # Admin: Get settings
+PUT    /api/admin/settings    # Admin: Update settings
+```
+
+## 🔐 Authentication & Authorization
+
+### JWT Authentication
+- Access tokens với expiration time
+- Refresh token mechanism
+- Role-based access control (admin, moderator, user)
+
+### Middleware
+- `authMiddleware` - Verify JWT tokens
+- `adminMiddleware` - Check admin permissions
+- `errorHandler` - Global error handling
+- `rateLimit` - API rate limiting
+
+### User Roles
+- **admin**: Full system access
+- **moderator**: Content management
+- **user**: Basic user features
+
+## 📁 File Upload
+
+### Supported Formats
+- Images: jpg, jpeg, png, gif, webp
+- Documents: pdf, doc, docx, txt
+- Archives: zip, rar
+
+### Upload Configuration
+```typescript
+const upload = multer({
+  dest: process.env.UPLOAD_DIR || './public/uploads',
+  limits: {
+    fileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760')
+  },
+  fileFilter: (req, file, cb) => {
+    // File type validation
+  }
+});
+```
+
+## 🧪 Testing
+
+### Chạy Tests
   ```bash
   npm test
   ```
-- Đã có test cho: auth, user, content, search, upload, settings, category, tag, comment, activity log, analytics event, các case lỗi, bảo mật, rate limit.
 
----
+### Test Structure
+```
+tests/
+├── auth.test.ts           # Authentication tests
+├── user.test.ts          # User management tests
+├── content.test.ts       # Content management tests
+├── category.test.ts      # Category tests
+├── tag.test.ts          # Tag tests
+├── comment.test.ts      # Comment tests
+├── search.test.ts       # Search tests
+├── upload.test.ts       # File upload tests
+└── activityLog.test.ts  # Activity log tests
+```
 
-## 5. Chuẩn hóa code & format
-
-- **Chỉ dùng Prettier để format code:**
+### Test Commands
   ```bash
-  npm run format
-  ```
-- Không dùng ESLint nâng cao (tương thích tốt với ESM, Node 20+).
+npm test                    # Run all tests
+npm test -- --watch        # Watch mode
+npm test -- --coverage     # Coverage report
+npm test auth.test.ts      # Run specific test file
+```
 
----
+## 📚 API Documentation
 
-## 6. Bảo mật
+Swagger UI available at: `http://localhost:4000/api-docs`
 
-- **JWT Auth:** Đăng nhập, xác thực, phân quyền (user/admin).
-- **Rate limit:** Giới hạn 30 request/15 phút cho các route public (`/api/auth`, `/api/upload`, `/api/account`, `/api/search`, `/api/health`).
-- **Validate input:** Tất cả API nhận dữ liệu đều kiểm tra input, trả lỗi 400 nếu không hợp lệ.
-- **Ẩn lỗi:** Không trả stack trace ở production.
-- **Middleware phân quyền:** Kiểm tra quyền admin cho các route quản trị.
+### API Response Format
+```typescript
+// Success Response
+{
+  "success": true,
+  "data": { ... },
+  "message": "Operation successful"
+}
 
----
+// Error Response
+{
+  "success": false,
+  "error": "Error message",
+  "code": "ERROR_CODE"
+}
+```
 
-## 7. Phân trang & Chuẩn API
+## 🔧 Development
 
-- Tất cả API list đều hỗ trợ `page`, `limit` (mặc định 18).
-- Response chuẩn:
-  ```json
-  {
-    "data": [ ... ],
-    "total": 123,
-    "page": 1,
-    "limit": 18
+### Scripts
+```bash
+npm run dev          # Development server with nodemon
+npm start           # Production server
+npm test           # Run tests
+npm run format     # Format code with Prettier
+```
+
+### Code Structure
+
+#### Controllers
+Handle HTTP requests và responses:
+```typescript
+export const getContent = async (req: Request, res: Response) => {
+  try {
+    const content = await contentService.getAllContent();
+    res.json({ success: true, data: content });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
-  ```
-- Các API CRUD trả về status code chuẩn REST (200, 201, 204, 400, 401, 404, 429...).
-
----
-
-## 8. Upload file
-
-- API: `POST /api/upload`
-- Trả về URL file đã upload.
-- Đã validate file, kiểm soát rate limit.
-
----
-
-## 9. Seed & Mock data
-
-- Dữ liệu mẫu nằm trong thư mục `mock_data`.
-- Script seed tự động chuyển id sang UUID, đồng bộ liên kết.
-
----
-
-## 10. Tài liệu API (Swagger)
-
-- Đã tích hợp Swagger UI.
-- Truy cập docs tại: `http://localhost:4000/api-docs` (hoặc `/swagger` nếu cấu hình lại).
-- Tài liệu tự động sinh từ comment OpenAPI trong các file route.
-
----
-
-## 11. Mở rộng & Tùy biến
-
-- Dễ dàng mở rộng module (user, content, admin, analytics...).
-- Có thể tích hợp thêm cache (Redis), search nâng cao, realtime, đa ngôn ngữ...
-- Đã chuẩn hóa middleware, service, repository, dễ bảo trì.
-
----
-
-## 12. Một số lưu ý
-
-- **Không để lộ JWT_SECRET, DATABASE_URL lên public.**
-- **Nên đổi PORT, JWT_SECRET khi deploy production.**
-- **Kiểm tra lại index DB nếu dữ liệu lớn.**
-- **Có thể nâng cấp thêm CI/CD, logging, monitoring...**
-
----
-
-## 13. Liên hệ & Hỗ trợ
-
-- Nếu gặp lỗi hoặc cần mở rộng, hãy liên hệ team phát triển hoặc tạo issue trên repo.
-
----
-
-**Chúc bạn sử dụng hệ thống hiệu quả!**
-Nếu cần tài liệu chi tiết cho từng API (request/response mẫu, error code, v.v.), hoặc hướng dẫn migration, hãy yêu cầu thêm! 
-
----
-
-## 14. Cấu trúc thư mục chính
-
-```
-backend/
-├── src/
-│   ├── controllers/         # Xử lý logic cho từng resource (User, Content, Auth, ...)
-│   ├── services/            # Xử lý nghiệp vụ, gọi repository
-│   ├── repositories/        # Truy vấn database
-│   ├── models/              # Định nghĩa model (interface/type)
-│   ├── routes/              # Định nghĩa route cho từng resource
-│   ├── middleware/          # Middleware (auth, error, rate limit, ...)
-│   ├── scripts/             # Script seed, migrate, util
-│   ├── db.ts                # Kết nối database
-│   ├── index.ts             # Khởi tạo app, mount middleware, routes
-│   └── server.ts            # Chạy server (app.listen)
-├── tests/                   # Test tự động cho từng API
-├── mock_data/               # Dữ liệu mẫu để seed
-├── README.md                # Tài liệu dự án
-├── package.json             # Thông tin package, script
-└── ...
+};
 ```
 
----
+#### Services
+Business logic layer:
+```typescript
+export class ContentService {
+  async getAllContent(): Promise<Content[]> {
+    return await contentRepository.findAll();
+  }
+  
+  async createContent(data: CreateContentDto): Promise<Content> {
+    // Validation logic
+    return await contentRepository.create(data);
+  }
+}
+```
 
-## 15. Danh sách API endpoint
+#### Repositories
+Data access layer:
+```typescript
+export class ContentRepository {
+  async findAll(): Promise<Content[]> {
+    const result = await pool.query('SELECT * FROM content');
+    return result.rows;
+  }
+  
+  async create(data: CreateContentDto): Promise<Content> {
+    const query = 'INSERT INTO content (...) VALUES (...) RETURNING *';
+    const result = await pool.query(query, [data.title, data.content]);
+    return result.rows[0];
+  }
+}
+```
 
-### **1. Auth & Account**
-- `POST   /api/auth/register`      – Đăng ký tài khoản
-- `POST   /api/auth/login`         – Đăng nhập
-- `POST   /api/auth/logout`        – Đăng xuất
-- `GET    /api/auth/profile`       – Lấy thông tin user hiện tại
-- `GET    /api/account/profile`    – Lấy profile (có xác thực)
-- `PUT    /api/account/profile`    – Cập nhật profile
-- `PUT    /api/account/password`   – Đổi mật khẩu
+## 🚀 Production Deployment
 
-### **2. User**
-- `GET    /api/users`              – Danh sách user (phân trang)
-- `GET    /api/users/:id`          – Lấy chi tiết user
-- `POST   /api/users`              – Tạo user (stub)
-- `PUT    /api/users/:id`          – Cập nhật user (stub)
-- `DELETE /api/users/:id`          – Xóa user
+### Environment Variables
+```env
+NODE_ENV=production
+DATABASE_URL=postgresql://...
+PORT=4000
+JWT_SECRET=...
+```
 
-### **3. Content**
-- `GET    /api/content`            – Danh sách content (phân trang)
-- `GET    /api/content/:id`        – Lấy chi tiết content
-- `POST   /api/content`            – Tạo content
-- `PUT    /api/content/:id`        – Cập nhật content
-- `DELETE /api/content/:id`        – Xóa content
-- `POST   /api/content/:id/publish`   – Publish content
-- `POST   /api/content/:id/archive`   – Archive content
-- `POST   /api/content/:id/duplicate` – Duplicate content
-- `GET    /api/content/export`         – Export content (CSV)
-- `POST   /api/content/import`         – Import content (stub)
-- `GET    /api/content/:id/comments`   – Lấy comment của content
-- `POST   /api/content/:id/comments`   – Thêm comment cho content
-- `POST   /api/content/:id/like`       – Like content
-- `POST   /api/content/:id/bookmark`   – Bookmark content
+### Build & Start
+```bash
+npm start
+```
 
-### **4. Category**
-- `GET    /api/categories`         – Danh sách category (phân trang)
-- `GET    /api/categories/:id`     – Lấy chi tiết category
-- `POST   /api/categories`         – Tạo category
-- `PUT    /api/categories/:id`     – Cập nhật category
-- `DELETE /api/categories/:id`     – Xóa category
+### Docker Deployment
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 4000
+CMD ["npm", "start"]
+```
 
-### **5. Tag**
-- `GET    /api/tags`               – Danh sách tag (phân trang)
-- `GET    /api/tags/:id`           – Lấy chi tiết tag
-- `POST   /api/tags`               – Tạo tag
-- `PUT    /api/tags/:id`           – Cập nhật tag
-- `DELETE /api/tags/:id`           – Xóa tag
+## 📊 Monitoring & Logging
 
-### **6. Comment**
-- `GET    /api/comments`           – Danh sách comment (phân trang)
-- `GET    /api/comments/:id`       – Lấy chi tiết comment
-- `POST   /api/comments`           – Tạo comment
-- `PUT    /api/comments/:id`       – Cập nhật comment (stub)
-- `DELETE /api/comments/:id`       – Xóa comment
+### Health Check
+```
+GET /api/health
+```
 
-### **7. Settings**
-- `GET    /api/settings`           – Danh sách settings
-- `GET    /api/settings/:id`       – Lấy chi tiết setting
-- `POST   /api/settings`           – Tạo setting
-- `PUT    /api/settings/:id`       – Cập nhật setting
-- `DELETE /api/settings/:id`       – Xóa setting
+### Activity Logging
+- User actions được log tự động
+- API requests được track
+- Error logging với stack traces
 
-### **8. Search**
-- `GET    /api/search?q=keyword`   – Tìm kiếm content theo từ khóa
+### Rate Limiting
+- 1000 requests per 15 minutes cho public endpoints
+- Configurable limits per endpoint
 
-### **9. Upload**
-- `POST   /api/upload`             – Upload file, trả về URL
+## 🛠️ Troubleshooting
 
-### **10. Analytics & Activity Log**
-- `GET    /api/analytics-events`   – Danh sách sự kiện analytics
-- `GET    /api/analytics-events/:id` – Lấy chi tiết event
-- `POST   /api/analytics-events`   – Tạo event (stub)
-- `PUT    /api/analytics-events/:id` – Cập nhật event (stub)
-- `DELETE /api/analytics-events/:id` – Xóa event
-- `GET    /api/activity-logs`      – Danh sách activity log
-- `GET    /api/activity-logs/:id`  – Lấy chi tiết log
-- `POST   /api/activity-logs`      – Tạo log (stub)
-- `PUT    /api/activity-logs/:id`  – Cập nhật log (stub)
-- `DELETE /api/activity-logs/:id`  – Xóa log
+### Common Issues
 
-### **11. Admin (quản trị)**
-- `GET    /api/admin/users`        – Danh sách user (lọc, search, phân trang)
-- `GET    /api/admin/users/:id`    – Lấy chi tiết user
-- `POST   /api/admin/users`        – Tạo user
-- `PUT    /api/admin/users/:id`    – Cập nhật user
-- `DELETE /api/admin/users/:id`    – Xóa user
-- `GET    /api/admin/activity-logs` – Danh sách activity log
-- `GET    /api/admin/activity-logs/:id` – Lấy chi tiết log
-- `GET    /api/admin/settings`     – Danh sách settings
-- `GET    /api/admin/settings/:id` – Lấy chi tiết setting
-- `POST   /api/admin/settings`     – Tạo setting
-- `PUT    /api/admin/settings/:id` – Cập nhật setting
-- `DELETE /api/admin/settings/:id` – Xóa setting
+1. **Database Connection Failed**
+   - Kiểm tra DATABASE_URL
+   - Đảm bảo PostgreSQL đang chạy
+   - Verify database exists
 
----
+2. **JWT Token Issues**
+   - Kiểm tra JWT_SECRET
+   - Verify token expiration
+   - Check token format
 
-**Tất cả các API đều hỗ trợ phân trang (nếu là list), validate input, bảo vệ quyền truy cập (JWT, role), trả về dữ liệu thực tế từ DB.**
+3. **File Upload Issues**
+   - Kiểm tra UPLOAD_DIR permissions
+   - Verify file size limits
+   - Check file type restrictions
 
-Nếu cần chi tiết request/response mẫu cho từng API, hãy yêu cầu thêm! 
+### Debug Mode
+```bash
+DEBUG=* npm run dev
+```
+
+## 📝 License
+
+MIT License - see LICENSE file for details.

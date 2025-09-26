@@ -115,8 +115,8 @@ export default function Layout({ children, showSearch = true }: LayoutProps) {
                         </>
                       )}
                       <button
-                        onClick={() => {
-                          logout();
+                        onClick={async () => {
+                          await logout();
                           navigate("/");
                         }}
                         className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg"

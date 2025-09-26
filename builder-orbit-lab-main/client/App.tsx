@@ -14,6 +14,8 @@ import Notes from "./pages/Notes";
 import Login from "./pages/Login";
 import Account from "./pages/Account";
 import ArticleDetail from "./pages/ArticleDetail";
+import DocumentDetail from "./pages/DocumentDetail";
+import NoteDetail from "./pages/NoteDetail";
 import Search from "./pages/Search";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -64,7 +66,9 @@ const App = () => (
             <Route path="/articles" element={<Articles />} />
             <Route path="/articles/:id" element={<ArticleDetail />} />
             <Route path="/documents" element={<Documents />} />
+            <Route path="/documents/:id" element={<DocumentDetail />} />
             <Route path="/notes" element={<Notes />} />
+            <Route path="/notes/:id" element={<NoteDetail />} />
             <Route path="/search" element={<Search />} />
             <Route path="/login" element={<Login />} />
             <Route path="/account" element={<Account />} />

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Grid3X3,
@@ -17,7 +17,7 @@ import {
 import Layout from "../components/Layout";
 
 interface Document {
-  id: number;
+  id: string;
   title: string;
   description: string;
   type: string;
@@ -45,99 +45,78 @@ export default function Documents() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [totalDocuments, setTotalDocuments] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Extensive mock data for documents
-  const documents: Document[] = Array.from({ length: 128 }, (_, i) => {
-    const types = ["PDF", "DOCX", "XLSX", "PPTX", "TXT", "CSV"];
-    const categories = [
-      "Technical",
-      "Legal",
-      "Business",
-      "Education",
-      "Research",
-      "Templates",
-      "Reports",
-      "Guides",
-      "Presentations",
-      "Specifications",
-    ];
-    const authors = [
-      "Admin Team",
-      "Legal Department",
-      "HR Department",
-      "Engineering Team",
-      "Marketing Team",
-      "Finance Team",
-      "Research Division",
-      "Design Team",
-      "Operations Team",
-      "Strategy Team",
-    ];
+  // Fetch documents from API
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    
+    const params = new URLSearchParams({
+      type: "document",
+      page: currentPage.toString(),
+      limit: itemsPerPage.toString(),
+    });
+    
+    if (searchQuery.trim()) {
+      params.append('search', searchQuery.trim());
+    }
+    
+    if (selectedCategory !== "all") {
+      params.append('category', selectedCategory);
+    }
+    
+    if (selectedType !== "all") {
+      params.append('file_type', selectedType);
+    }
+    
+    params.append('sort', sortBy);
+    
+    fetch(`/api/content?${params.toString()}`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        // Transform API data to match Document interface
+        const transformedDocs = (data.data || []).map((doc: any) => ({
+          id: doc.id,
+          title: doc.title,
+          description: doc.description,
+          type: doc.file_url ? doc.file_url.split('.').pop()?.toUpperCase() || 'FILE' : 'FILE',
+          category: doc.category_name || doc.category || 'Uncategorized',
+          size: formatFileSize(doc.file_size || 0),
+          date: new Date(doc.created_at).toLocaleDateString(),
+          author: doc.author_name || 'Unknown Author',
+          downloads: Math.floor(Math.random() * 1000) + 50, // Mock downloads
+          views: doc.views || 0,
+          rating: Math.floor(Math.random() * 5) + 1, // Mock rating
+          featured: doc.featured || false,
+          tags: Array.isArray(doc.tags) ? doc.tags : (typeof doc.tags === 'string' ? JSON.parse(doc.tags || '[]') : [])
+        }));
+        setDocuments(transformedDocs);
+        setTotalDocuments(data.total || 0);
+      })
+      .catch((err) => {
+        console.error("Error fetching documents:", err);
+        setError("Failed to fetch documents");
+        setDocuments([]);
+        setTotalDocuments(0);
+      })
+      .finally(() => setLoading(false));
+  }, [currentPage, itemsPerPage, searchQuery, selectedCategory, selectedType, sortBy]);
 
-    const documentTitles = [
-      "API Documentation v2.1",
-      "Employee Handbook 2024",
-      "Project Requirements Specification",
-      "User Privacy Policy",
-      "Financial Report Q4 2023",
-      "Software Architecture Guide",
-      "Brand Guidelines",
-      "Security Protocols Manual",
-      "Training Material Template",
-      "Compliance Guidelines",
-      "Product Roadmap 2024",
-      "Quarterly Business Review",
-      "Technical Standards Document",
-      "Marketing Strategy Plan",
-      "Database Schema Documentation",
-      "Risk Assessment Report",
-      "Code Review Guidelines",
-      "Meeting Minutes Template",
-      "Proposal Template",
-      "System Requirements Document",
-      "Quality Assurance Checklist",
-      "Onboarding Guide",
-      "Performance Metrics Report",
-      "Budget Allocation Spreadsheet",
-      "Client Presentation Template",
-    ];
-
-    const type = types[i % types.length];
-    const category = categories[i % categories.length];
-    const baseTitle = documentTitles[i % documentTitles.length];
-    const title =
-      i < documentTitles.length
-        ? baseTitle
-        : `${baseTitle} - Version ${Math.floor(i / documentTitles.length) + 1}`;
-
-    const sizeValue = Math.random() * 10 + 0.1;
-    const sizeUnit = sizeValue > 5 ? "MB" : "KB";
-    const size = `${(sizeValue > 5 ? sizeValue : sizeValue * 1000).toFixed(1)} ${sizeUnit}`;
-
-    return {
-      id: i + 1,
-      title,
-      description: `Comprehensive ${category.toLowerCase()} document covering ${title.toLowerCase()}. Contains detailed information, guidelines, and procedures. Essential resource for team members and stakeholders.`,
-      type,
-      category,
-      size,
-      date: new Date(
-        2024 - Math.floor(i / 40),
-        (i * 2) % 12,
-        (i % 28) + 1,
-      ).toLocaleDateString(),
-      author: authors[i % authors.length],
-      downloads: Math.floor(Math.random() * 1000) + 50,
-      views: Math.floor(Math.random() * 2000) + 100,
-      rating: Math.round((Math.random() * 2 + 3) * 10) / 10, // 3.0 to 5.0
-      featured: i < 6, // First 6 documents are featured
-      tags: [
-        category.toLowerCase(),
-        type.toLowerCase(),
-        i % 3 === 0 ? "essential" : i % 3 === 1 ? "reference" : "template",
-      ],
-    };
-  });
+  const formatFileSize = (bytes: number) => {
+    if (!bytes) return 'Unknown size';
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  };
 
   const categories = [
     "all",
@@ -145,103 +124,40 @@ export default function Documents() {
   ];
   const types = ["all", ...Array.from(new Set(documents.map((d) => d.type)))];
 
-  const { filteredDocuments, paginatedDocuments, totalPages } = useMemo(() => {
-    let filtered = documents.filter((document) => {
-      const matchesSearch =
-        searchQuery === "" ||
-        document.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        document.description
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        document.author.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesCategory =
-        selectedCategory === "all" || document.category === selectedCategory;
-
-      const matchesType =
-        selectedType === "all" || document.type === selectedType;
-
-      return matchesSearch && matchesCategory && matchesType;
-    });
-
-    // Sort documents
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "oldest":
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
-        case "popular":
-          return b.downloads - a.downloads;
-        case "mostViewed":
-          return b.views - a.views;
-        case "rating":
-          return b.rating - a.rating;
-        case "name":
-          return a.title.localeCompare(b.title);
-        case "newest":
-        default:
-          return new Date(b.date).getTime() - new Date(a.date).getTime();
-      }
-    });
-
-    const totalPages = Math.ceil(filtered.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginated = filtered.slice(startIndex, startIndex + itemsPerPage);
-
-    return {
-      filteredDocuments: filtered,
-      paginatedDocuments: paginated,
-      totalPages,
-    };
-  }, [
-    documents,
-    searchQuery,
-    selectedCategory,
-    selectedType,
-    sortBy,
-    currentPage,
-    itemsPerPage,
-  ]);
+  const totalPages = Math.ceil(totalDocuments / itemsPerPage);
+  const paginatedDocuments = documents; // Đã phân trang và filter ở backend
 
   const gridCols =
     gridLayout === "2x2"
       ? "grid-cols-1 md:grid-cols-2"
       : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
 
-  const getFileIcon = (type: string) => {
-    const colorMap = {
-      PDF: "text-red-600 bg-red-100",
-      DOCX: "text-blue-600 bg-blue-100",
-      XLSX: "text-green-600 bg-green-100",
-      PPTX: "text-orange-600 bg-orange-100",
-      TXT: "text-gray-600 bg-gray-100",
-      CSV: "text-purple-600 bg-purple-100",
-    };
-    return (
-      colorMap[type as keyof typeof colorMap] || "text-gray-600 bg-gray-100"
-    );
-  };
-
   const formatNumber = (num: number) => {
     if (num >= 1000) return (num / 1000).toFixed(1) + "k";
     return num.toString();
   };
 
+  const getFileIcon = (type: string) => {
+    switch (type?.toLowerCase()) {
+      case 'pdf':
+        return 'bg-red-100 text-red-800';
+      case 'doc':
+      case 'docx':
+        return 'bg-blue-100 text-blue-800';
+      case 'xls':
+      case 'xlsx':
+        return 'bg-green-100 text-green-800';
+      case 'ppt':
+      case 'pptx':
+        return 'bg-orange-100 text-orange-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`w-3 h-3 ${
-          i < Math.floor(rating)
-            ? "text-yellow-400 fill-current"
-            : "text-gray-300"
-        }`}
-      />
-    ));
   };
 
   return (
@@ -251,10 +167,10 @@ export default function Documents() {
         <div>
           <h1 className="text-3xl font-bold text-black mb-2">Documents</h1>
           <p className="text-gray-600">
-            Access important documents and resources from our library
+            Access and download important documents and resources
           </p>
           <p className="text-sm text-gray-500 mt-1">
-            {filteredDocuments.length} documents available
+            {totalDocuments} documents available
           </p>
         </div>
 
@@ -307,15 +223,13 @@ export default function Documents() {
             <span className="text-sm font-medium text-gray-700">Category:</span>
             <select
               value={selectedCategory}
-              onChange={(e) => {
-                setSelectedCategory(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black"
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
             >
+              <option value="all">All Categories</option>
               {categories.map((category) => (
                 <option key={category} value={category}>
-                  {category === "all" ? "All Categories" : category}
+                  {category}
                 </option>
               ))}
             </select>
@@ -325,15 +239,13 @@ export default function Documents() {
             <span className="text-sm font-medium text-gray-700">Type:</span>
             <select
               value={selectedType}
-              onChange={(e) => {
-                setSelectedType(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black"
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
             >
+              <option value="all">All Types</option>
               {types.map((type) => (
                 <option key={type} value={type}>
-                  {type === "all" ? "All Types" : type}
+                  {type}
                 </option>
               ))}
             </select>
@@ -344,31 +256,14 @@ export default function Documents() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black"
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
-              <option value="popular">Most Downloads</option>
-              <option value="mostViewed">Most Viewed</option>
-              <option value="rating">Highest Rated</option>
-              <option value="name">Name (A-Z)</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2 ml-auto">
-            <span className="text-sm font-medium text-gray-700">Show:</span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black"
-            >
-              <option value={6}>6 per page</option>
-              <option value={12}>12 per page</option>
-              <option value={24}>24 per page</option>
-              <option value={48}>48 per page</option>
+              <option value="most-downloaded">Most Downloaded</option>
+              <option value="most-viewed">Most Viewed</option>
+              <option value="highest-rated">Highest Rated</option>
+              <option value="alphabetical">Alphabetical</option>
             </select>
           </div>
         </div>
@@ -380,10 +275,10 @@ export default function Documents() {
           Showing{" "}
           {Math.min(
             (currentPage - 1) * itemsPerPage + 1,
-            filteredDocuments.length,
+            totalDocuments,
           )}{" "}
-          to {Math.min(currentPage * itemsPerPage, filteredDocuments.length)} of{" "}
-          {filteredDocuments.length} documents
+          to {Math.min(currentPage * itemsPerPage, totalDocuments)} of{" "}
+          {totalDocuments} documents
           {searchQuery && ` matching "${searchQuery}"`}
         </p>
       </div>
@@ -393,6 +288,7 @@ export default function Documents() {
         {paginatedDocuments.map((document) => (
           <div
             key={document.id}
+            onClick={() => navigate(`/documents/${document.id}`)}
             className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group"
           >
             {/* Featured Badge */}
@@ -404,13 +300,13 @@ export default function Documents() {
               </div>
             )}
 
-            {/* Document Icon */}
-            <div className="aspect-[4/3] bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors relative">
-              <div
-                className={`w-20 h-20 rounded-lg flex items-center justify-center ${getFileIcon(document.type)}`}
-              >
-                <FileText className="w-10 h-10" />
-              </div>
+            {/* Document Image */}
+            <div className="aspect-[4/3] bg-gray-200 overflow-hidden relative">
+              <img 
+                src="/unnamed.png" 
+                alt={document.title || "Document image"}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+              />
               <div className="absolute top-4 right-4">
                 <span
                   className={`px-2 py-1 text-xs font-bold rounded ${getFileIcon(document.type)}`}
@@ -420,132 +316,71 @@ export default function Documents() {
               </div>
             </div>
 
-            {/* Document Content */}
+            {/* Document Info */}
             <div className="p-6">
-              {/* Category and Size */}
-              <div className="flex items-center justify-between mb-3">
-                <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded font-medium">
-                  {document.category}
-                </span>
-                <span className="text-xs text-gray-500">{document.size}</span>
-              </div>
-
-              {/* Title */}
-              <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-black transition-colors line-clamp-2">
+              <h3 className="text-lg font-semibold text-black mb-2 line-clamp-2 group-hover:text-gray-600 transition-colors">
                 {document.title}
               </h3>
-
-              {/* Description */}
-              <p className="text-sm text-gray-600 line-clamp-3 mb-4">
+              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
                 {document.description}
               </p>
 
-              {/* Author and Date */}
-              <div className="flex items-center gap-4 mb-3 text-xs text-gray-500">
-                <span className="flex items-center gap-1">
-                  <User className="w-3 h-3" />
-                  {document.author}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {document.date}
-                </span>
+              {/* Document Meta */}
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  <span>{document.author}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  <span>{document.date}</span>
+                </div>
               </div>
 
-              {/* Rating */}
-              <div className="flex items-center gap-2 mb-3">
-                <div className="flex items-center gap-1">
-                  {renderStars(document.rating)}
+              {/* Stats */}
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <Eye className="w-4 h-4 text-gray-400" />
+                    <span>{formatNumber(document.views)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Download className="w-4 h-4 text-gray-400" />
+                    <span>{formatNumber(document.downloads)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                    <span>{document.rating.toFixed(1)}</span>
+                  </div>
                 </div>
-                <span className="text-xs text-gray-500">
-                  {document.rating.toFixed(1)}
-                </span>
+                <span className="text-gray-500">{document.size}</span>
               </div>
 
-              {/* Stats and Actions */}
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <Eye className="w-3 h-3" />
-                    {formatNumber(document.views)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Download className="w-3 h-3" />
-                    {formatNumber(document.downloads)}
-                  </span>
+              {/* Tags */}
+              {document.tags && document.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-4">
+                  {document.tags.slice(0, 3).map((tag, index) => (
+                    <span
+                      key={index}
+                      className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {document.tags.length > 3 && (
+                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                      +{document.tags.length - 3}
+                    </span>
+                  )}
                 </div>
-                <button className="p-2 text-gray-400 hover:text-black transition-colors">
-                  <Download className="w-4 h-4" />
-                </button>
-              </div>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
-          <div className="text-sm text-gray-600">
-            Page {currentPage} of {totalPages}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </button>
-
-            {/* Page Numbers */}
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`px-3 py-2 text-sm border rounded-md transition-colors ${
-                      currentPage === pageNum
-                        ? "bg-black text-white border-black"
-                        : "border-gray-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={() =>
-                handlePageChange(Math.min(totalPages, currentPage + 1))
-              }
-              disabled={currentPage === totalPages}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* No Results */}
-      {filteredDocuments.length === 0 && (
+      {paginatedDocuments.length === 0 && (
         <div className="text-center py-16">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileText className="w-8 h-8 text-gray-400" />
@@ -553,22 +388,58 @@ export default function Documents() {
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             No documents found
           </h3>
-          <p className="text-gray-500 mb-4">
-            {searchQuery
-              ? `No documents found matching "${searchQuery}"`
-              : "No documents match your current filters"}
+          <p className="text-gray-600 mb-4">
+            {searchQuery || selectedCategory !== "all" || selectedType !== "all"
+              ? "Try adjusting your search or filters"
+              : "No documents available at the moment"}
           </p>
-          <button
-            onClick={() => {
-              setSearchQuery("");
-              setSelectedCategory("all");
-              setSelectedType("all");
-              setCurrentPage(1);
-            }}
-            className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            Clear filters
-          </button>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Showing {((currentPage - 1) * itemsPerPage) + 1} to{" "}
+            {Math.min(currentPage * itemsPerPage, totalDocuments)} of{" "}
+            {totalDocuments} documents
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const page = i + 1;
+                return (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`px-3 py-2 rounded-lg transition-colors ${
+                      currentPage === page
+                        ? "bg-black text-white"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
     </Layout>

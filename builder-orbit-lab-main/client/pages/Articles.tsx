@@ -48,42 +48,55 @@ export default function Articles() {
 
   useEffect(() => {
     setLoading(true);
+    setError("");
+    
     // Xây dựng query string cho API
     const params = new URLSearchParams({
       type: "article",
       page: currentPage.toString(),
       limit: itemsPerPage.toString(),
-      // Có thể bổ sung filter/sort nếu backend hỗ trợ
     });
+    
+    // Thêm search query nếu có
+    if (searchQuery.trim()) {
+      params.append('search', searchQuery.trim());
+    }
+    
+    // Thêm category filter nếu không phải "all"
+    if (selectedCategory !== "all") {
+      params.append('category', selectedCategory);
+    }
+    
+    // Thêm sort parameter
+    params.append('sort', sortBy);
+    
     fetch(`/api/content?${params.toString()}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
         setArticles(data.data || []);
         setTotalArticles(data.total || 0);
       })
-      .catch(() => setError("Failed to fetch articles"))
+      .catch((err) => {
+        console.error("Error fetching articles:", err);
+        setError("Failed to fetch articles");
+        setArticles([]);
+        setTotalArticles(0);
+      })
       .finally(() => setLoading(false));
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, itemsPerPage, searchQuery, selectedCategory, sortBy]);
 
   const categories = [
     "all",
     ...Array.from(new Set(articles.map((a) => a.category))),
   ];
 
-  // Bỏ filter/sort/paginate ở frontend, chỉ filter theo search/category nếu backend chưa hỗ trợ
-  const filteredArticles = articles.filter((article) => {
-      const matchesSearch =
-        searchQuery === "" ||
-        article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        article.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        article.author.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        selectedCategory === "all" || article.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    });
-
   const totalPages = Math.ceil(totalArticles / itemsPerPage);
-  const paginatedArticles = filteredArticles; // Đã phân trang ở backend
+  const paginatedArticles = articles; // Đã phân trang và filter ở backend
 
   const gridCols =
     gridLayout === "2x2"
@@ -110,7 +123,7 @@ export default function Articles() {
             Discover thought-provoking articles and stories from our community
           </p>
           <p className="text-sm text-gray-500 mt-1">
-            {filteredArticles.length} articles available
+            {totalArticles} articles available
           </p>
         </div>
 
@@ -216,10 +229,10 @@ export default function Articles() {
           Showing{" "}
           {Math.min(
             (currentPage - 1) * itemsPerPage + 1,
-            filteredArticles.length,
+            totalArticles,
           )}{" "}
-          to {Math.min(currentPage * itemsPerPage, filteredArticles.length)} of{" "}
-          {filteredArticles.length} articles
+          to {Math.min(currentPage * itemsPerPage, totalArticles)} of{" "}
+          {totalArticles} articles
           {searchQuery && ` matching "${searchQuery}"`}
         </p>
       </div>
@@ -242,12 +255,12 @@ export default function Articles() {
             )}
 
             {/* Article Image */}
-            <div className="aspect-[4/3] bg-gradient-to-br from-gray-200 to-gray-300 group-hover:from-gray-300 group-hover:to-gray-400 transition-all duration-200 relative">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
-                  <Calendar className="w-8 h-8 text-gray-600" />
-                </div>
-              </div>
+            <div className="aspect-[4/3] bg-gray-200 overflow-hidden relative">
+              <img 
+                src="/unnamed.png" 
+                alt={article.title || "Article image"}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+              />
             </div>
 
             {/* Article Content */}
@@ -363,7 +376,7 @@ export default function Articles() {
       )}
 
       {/* No Results */}
-      {filteredArticles.length === 0 && (
+      {articles.length === 0 && (
         <div className="text-center py-16">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Search className="w-8 h-8 text-gray-400" />
