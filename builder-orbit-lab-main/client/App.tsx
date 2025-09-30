@@ -7,6 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ToastProvider } from "./contexts/ToastContext";
+import ToastContainer from "./components/ToastContainer";
 import Index from "./pages/Index";
 import Articles from "./pages/Articles";
 import Documents from "./pages/Documents";
@@ -32,6 +34,8 @@ import AdminTags from "./pages/admin/AdminTags";
 import { useEffect } from "react";
 import { useAuth } from "./contexts/AuthContext";
 import Share from "./pages/Share";
+import Bookmarks from "./pages/Bookmarks";
+import Favorites from "./pages/Favorites";
 
 function ActivityLogger() {
   const { user } = useAuth();
@@ -56,11 +60,13 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <ActivityLogger />
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+      <ToastProvider>
+        <TooltipProvider>
+          <ActivityLogger />
+          <Toaster />
+          <Sonner />
+          <ToastContainer />
+          <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/articles" element={<Articles />} />
@@ -72,6 +78,8 @@ const App = () => (
             <Route path="/search" element={<Search />} />
             <Route path="/login" element={<Login />} />
             <Route path="/account" element={<Account />} />
+            <Route path="/bookmarks" element={<Bookmarks />} />
+            <Route path="/favorites" element={<Favorites />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/content" element={<AdminContent />} />
@@ -88,7 +96,8 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-      </TooltipProvider>
+        </TooltipProvider>
+      </ToastProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

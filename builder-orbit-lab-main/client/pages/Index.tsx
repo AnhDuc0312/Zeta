@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Eye, Heart, Search } from "lucide-react";
 import Layout from "../components/Layout";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
@@ -12,6 +12,10 @@ export default function Index() {
   const [showLearnMore, setShowLearnMore] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
   const [showContactSales, setShowContactSales] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   useEffect(() => {
     document.title = "ZetaScript - Content Management Platform";
@@ -22,6 +26,42 @@ export default function Index() {
       .catch(() => setError("Failed to load preview"))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) {
+      setShowSearchResults(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=6`);
+      const data = await response.json();
+      setSearchResults(data.data || []);
+      setShowSearchResults(true);
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSearch(searchQuery);
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim()) {
+        handleSearch(searchQuery);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const PreviewSection = ({
     title,
@@ -48,14 +88,14 @@ export default function Index() {
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
-      {/* Preview Grid - 2 items */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Preview Grid - 3 items */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-2 text-center py-8 text-gray-500">Loading...</div>
+          <div className="col-span-full text-center py-8 text-gray-500">Loading...</div>
         ) : error ? (
-          <div className="col-span-2 text-center py-8 text-red-500">{error}</div>
+          <div className="col-span-full text-center py-8 text-red-500">{error}</div>
         ) : items.length === 0 ? (
-          <div className="col-span-2 text-center py-8 text-gray-400">No {title.toLowerCase()} found.</div>
+          <div className="col-span-full text-center py-8 text-gray-400">No {title.toLowerCase()} found.</div>
         ) : (
           items.map((item) => (
             <div
@@ -72,11 +112,25 @@ export default function Index() {
               </div>
               <div className="p-4">
                 <h3 className="font-medium text-gray-900 mb-2 line-clamp-2">{item.title}</h3>
-                <p className="text-sm text-gray-600 line-clamp-3 mb-2">{item.description || item.content?.slice(0, 100) || "No description"}</p>
-                <div className="flex items-center gap-3 text-xs text-gray-500">
-                  <span>{item.author || item.author_email || "Unknown"}</span>
+                <p className="text-sm text-gray-600 line-clamp-3 mb-3">{item.description || item.content?.slice(0, 100) || "No description"}</p>
+                
+                {/* Author and Date */}
+                <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                  <span>By {item.author_name || item.author || "Unknown"}</span>
                   <span>•</span>
                   <span>{item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}</span>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <Eye className="w-3 h-3" />
+                    <span>{item.views || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Heart className="w-3 h-3 text-red-400" />
+                    <span>{item.likes || 0}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -99,6 +153,23 @@ export default function Index() {
           Your ultimate platform for organizing articles, documents, and notes.
           Create, discover, and share your content with the world.
         </p>
+        
+        {/* Search Bar */}
+        <div className="max-w-2xl mx-auto mb-8">
+          <form onSubmit={handleSearchSubmit} className="relative">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search articles, documents, and notes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              />
+            </div>
+          </form>
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={() => navigate("/articles")}
@@ -114,6 +185,83 @@ export default function Index() {
           </button>
         </div>
       </div>
+
+      {/* Search Results */}
+      {showSearchResults && (
+        <div className="mb-16">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-semibold text-black">
+              Search Results for "{searchQuery}"
+            </h2>
+            <button
+              onClick={() => {
+                setShowSearchResults(false);
+                setSearchQuery("");
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              Clear
+            </button>
+          </div>
+          
+          {searchLoading ? (
+            <div className="text-center py-8 text-gray-500">Searching...</div>
+          ) : searchResults.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">No results found.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {searchResults.map((item: any) => (
+                <div
+                  key={item.id}
+                  className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/${item.type}/${item.id}`)}
+                >
+                  <div className="aspect-[4/3] bg-gray-200 flex items-center justify-center overflow-hidden">
+                    <img 
+                      src="/unnamed.png" 
+                      alt={item.title || "Content image"}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded font-medium">
+                        {item.type}
+                      </span>
+                      {item.featured && (
+                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-600 rounded font-medium">
+                          Featured
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-medium text-gray-900 mb-2 line-clamp-2">{item.title}</h3>
+                    <p className="text-sm text-gray-600 line-clamp-3 mb-3">{item.description || item.content?.slice(0, 100) || "No description"}</p>
+                    
+                    {/* Author and Date */}
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                      <span>By {item.author_name || item.author || "Unknown"}</span>
+                      <span>•</span>
+                      <span>{item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}</span>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Eye className="w-3 h-3" />
+                        <span>{item.views || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Heart className="w-3 h-3 text-red-400" />
+                        <span>{item.likes || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Preview Sections */}
       <PreviewSection

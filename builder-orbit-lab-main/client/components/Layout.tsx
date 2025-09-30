@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Search,
@@ -10,6 +10,11 @@ import {
   User,
   ChevronDown,
   Settings,
+  Bookmark,
+  Heart,
+  BarChart3,
+  LayoutDashboard,
+  LogOut,
 } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "../contexts/AuthContext";
@@ -23,12 +28,33 @@ export default function Layout({ children, showSearch = true }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoggedIn, isAdmin, logout } = useAuth();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   const getActiveTab = () => {
     if (location.pathname === "/articles") return "Articles";
     if (location.pathname === "/documents") return "Documents";
     if (location.pathname === "/notes") return "Notes";
     if (location.pathname === "/share") return "Share";
+    if (location.pathname === "/favorites") return "Favorites";
+    if (location.pathname === "/bookmarks") return "Bookmarks";
     return "Home";
   };
 
@@ -37,6 +63,8 @@ export default function Layout({ children, showSearch = true }: LayoutProps) {
     else if (tab === "Documents") navigate("/documents");
     else if (tab === "Notes") navigate("/notes");
     else if (tab === "Share") navigate("/share");
+    else if (tab === "Favorites") navigate("/favorites");
+    else if (tab === "Bookmarks") navigate("/bookmarks");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -63,7 +91,7 @@ export default function Layout({ children, showSearch = true }: LayoutProps) {
                 <button
                   key={tab}
                   onClick={() => handleTabClick(tab)}
-                  className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
                     activeTab === tab
                       ? "bg-white text-black shadow-sm"
                       : "text-gray-600 hover:text-black"
@@ -85,45 +113,84 @@ export default function Layout({ children, showSearch = true }: LayoutProps) {
               {isLoggedIn && user ? (
                 <div className="flex items-center gap-3">
                   {/* User Dropdown */}
-                  <div className="relative group">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors">
+                  <div className="relative" ref={dropdownRef}>
+                    <button 
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors"
+                    >
                       <User className="w-4 h-4" />
                       {user.name}
                       <ChevronDown className="w-3 h-3" />
                     </button>
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                      <button
-                        onClick={() => navigate("/account")}
-                        className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg"
-                      >
-                        Account Settings
-                      </button>
-                      {isAdmin && (
-                        <>
-                          <button
-                            onClick={() => navigate("/admin/dashboard")}
-                            className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
-                          >
-                            Dashboard Manager
-                          </button>
-                          <button
-                            onClick={() => navigate("/dashboard")}
-                            className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
-                          >
-                            Manager
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={async () => {
-                          await logout();
-                          navigate("/");
-                        }}
-                        className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg"
-                      >
-                        Sign Out
-                      </button>
-                    </div>
+                    {isDropdownOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                        <button
+                          onClick={() => {
+                            navigate("/account");
+                            setIsDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg flex items-center gap-2"
+                        >
+                          <Settings className="w-4 h-4" />
+                          Account Settings
+                        </button>
+                        <button
+                          onClick={() => {
+                            navigate("/bookmarks");
+                            setIsDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        >
+                          <Bookmark className="w-4 h-4" />
+                          My Bookmarks
+                        </button>
+                        <button
+                          onClick={() => {
+                            navigate("/favorites");
+                            setIsDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        >
+                          <Heart className="w-4 h-4" />
+                          My Favorites
+                        </button>
+                        {isAdmin && (
+                          <>
+                            <button
+                              onClick={() => {
+                                navigate("/admin/dashboard");
+                                setIsDropdownOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <LayoutDashboard className="w-4 h-4" />
+                              Dashboard Manager
+                            </button>
+                            <button
+                              onClick={() => {
+                                navigate("/dashboard");
+                                setIsDropdownOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <BarChart3 className="w-4 h-4" />
+                              Manager
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={async () => {
+                            await logout();
+                            navigate("/");
+                            setIsDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg flex items-center gap-2"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Sign Out
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -143,12 +210,12 @@ export default function Layout({ children, showSearch = true }: LayoutProps) {
       <div className="md:hidden bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-6 py-3">
           <nav className="flex justify-center">
-            <div className="flex bg-gray-100 rounded-full p-1 w-full max-w-md">
+            <div className="flex bg-gray-100 rounded-full p-1 w-full max-w-lg overflow-x-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab}
                   onClick={() => handleTabClick(tab)}
-                  className={`flex-1 py-2 rounded-full text-xs font-medium transition-all ${
+                  className={`flex-shrink-0 px-3 py-2 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
                     activeTab === tab
                       ? "bg-white text-black shadow-sm"
                       : "text-gray-600"

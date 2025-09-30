@@ -27,6 +27,8 @@ import {
 import AdminLayout from "../../components/AdminLayout";
 import { useAuth } from "../../contexts/AuthContext";
 import { markdownToHtml, processImageUrls, enhanceContent } from "../../lib/markdown";
+import ImageUpload from "../../components/ImageUpload";
+import ImageGallery from "../../components/ImageGallery";
 // XÓA: import Select from "react-select";
 
 // THÊM COMPONENT CUSTOM MULTI-SELECT TAGS
@@ -126,6 +128,17 @@ export default function CreateContent() {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [images, setImages] = useState<Array<{
+    id: string;
+    url: string;
+    filename: string;
+    metadata?: {
+      width: number;
+      height: number;
+      size: number;
+      format: string;
+    };
+  }>>([]);
 
   useEffect(() => {
     if (user && !formData.author) {
@@ -289,6 +302,7 @@ export default function CreateContent() {
       category_id: selectedCategory?.id || formData.category_id || "",
       author_id: user?.id || "",
       author_email: user?.email || "",
+      image_url: images.length > 0 ? images[0].url : null,
       // Remove fields that shouldn't be sent to backend
       category: undefined,
     };
@@ -629,6 +643,16 @@ You can use Markdown syntax:
                       <span>Word count: {formData.word_count}</span>
                       <span>Characters: {formData.content.length}</span>
                     </div>
+                  </div>
+
+                  {/* Image Gallery */}
+                  <div>
+                    <ImageGallery
+                      images={images}
+                      onImagesChange={setImages}
+                      maxImages={10}
+                      showUpload={true}
+                    />
                   </div>
 
                   {/* File Upload for Documents */}

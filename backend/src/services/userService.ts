@@ -16,8 +16,14 @@ export const UserService = {
   async getUserStats(userId: string) {
     return await UserRepository.getUserStats(userId);
   },
-  async getUserFavorites(userId: string) {
-    return await UserRepository.getUserFavorites(userId);
+  async getUserFavorites(userId: string, options?: {
+    page?: number;
+    limit?: number;
+    type?: string;
+    sort?: string;
+    search?: string;
+  }) {
+    return await UserRepository.getUserFavorites(userId, options);
   },
   // Add create, update, delete as needed
 };

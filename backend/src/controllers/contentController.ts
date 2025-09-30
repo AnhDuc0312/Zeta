@@ -123,13 +123,10 @@ export const ContentController = {
       res.status(500).json({ error: 'Internal server error' });
     }
   },
-  async bookmark(req: Request, res: Response) {
-    res.json({ message: 'Content bookmarked (stub)' });
-  },
   async homePreview(req: Request, res: Response) {
-    const articles = await ContentService.getLatestByType('article', 2);
-    const documents = await ContentService.getLatestByType('document', 2);
-    const notes = await ContentService.getLatestByType('note', 2);
+    const articles = await ContentService.getLatestByType('article', 3);
+    const documents = await ContentService.getLatestByType('document', 3);
+    const notes = await ContentService.getLatestByType('note', 3);
     res.json({ articles, documents, notes });
   },
   async getStats(req: Request, res: Response) {

@@ -71,45 +71,105 @@ export const UserRepository = {
       totalViews: parseInt(viewsResult.rows[0].total_views, 10),
     };
   },
-  async getUserFavorites(userId: string) {
-    // Get liked content grouped by type
-    const articlesResult = await pool.query(
-      `SELECT c.*, u.name as author_name 
-       FROM content c 
-       JOIN users u ON c.author_id = u.id 
-       WHERE c.id IN (
-         SELECT content_id FROM user_likes WHERE user_id = $1
-       ) AND c.type = $2
-       ORDER BY c.created_at DESC`,
-      [userId, 'article']
-    );
+  async getUserFavorites(userId: string, options: {
+    page?: number;
+    limit?: number;
+    type?: string;
+    sort?: string;
+    search?: string;
+  } = {}) {
+    const { page = 1, limit = 20, type = 'all', sort = 'newest', search = '' } = options;
+    const offset = (page - 1) * limit;
     
-    const documentsResult = await pool.query(
-      `SELECT c.*, u.name as author_name 
-       FROM content c 
-       JOIN users u ON c.author_id = u.id 
-       WHERE c.id IN (
-         SELECT content_id FROM user_likes WHERE user_id = $1
-       ) AND c.type = $2
-       ORDER BY c.created_at DESC`,
-      [userId, 'document']
-    );
-    
-    const notesResult = await pool.query(
-      `SELECT c.*, u.name as author_name 
-       FROM content c 
-       JOIN users u ON c.author_id = u.id 
-       WHERE c.id IN (
-         SELECT content_id FROM user_likes WHERE user_id = $1
-       ) AND c.type = $2
-       ORDER BY c.created_at DESC`,
-      [userId, 'note']
-    );
+    let whereClause = 'WHERE c.id IN (SELECT content_id FROM user_likes WHERE user_id = $1)';
+    let queryParams: any[] = [userId];
+    let paramCount = 1;
+
+    // Filter by type
+    if (type !== 'all') {
+      paramCount++;
+      whereClause += ` AND c.type = $${paramCount}`;
+      queryParams.push(type);
+    }
+
+    // Search filter
+    if (search) {
+      paramCount++;
+      whereClause += ` AND (c.title ILIKE $${paramCount} OR c.description ILIKE $${paramCount})`;
+      queryParams.push(`%${search}%`);
+    }
+
+    // Sort order
+    let orderClause = 'ORDER BY c.created_at DESC';
+    if (sort === 'oldest') {
+      orderClause = 'ORDER BY c.created_at ASC';
+    } else if (sort === 'title') {
+      orderClause = 'ORDER BY c.title ASC';
+    }
+
+    // Get favorites with content details
+    const query = `
+      SELECT 
+        c.id,
+        c.title,
+        c.description,
+        c.type,
+        c.content,
+        c.created_at,
+        c.views,
+        c.likes,
+        c.comments,
+        c.category_id,
+        u.name as author_name,
+        ul.created_at as favorited_at
+      FROM content c
+      JOIN users u ON c.author_id = u.id
+      JOIN user_likes ul ON c.id = ul.content_id
+      ${whereClause}
+      ${orderClause}
+      LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+    `;
+
+    queryParams.push(limit, offset);
+
+    const result = await pool.query(query, queryParams);
+
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM content c
+      JOIN user_likes ul ON c.id = ul.content_id
+      ${whereClause}
+    `;
+
+    const countResult = await pool.query(countQuery, queryParams.slice(0, -2));
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / limit);
 
     return {
-      articles: articlesResult.rows,
-      documents: documentsResult.rows,
-      notes: notesResult.rows,
+      data: result.rows.map(row => ({
+        id: row.id,
+        content_id: row.id,
+        content: {
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          type: row.type,
+          author: row.author_name,
+          created_at: row.created_at,
+          views: row.views || 0,
+          likes: row.likes || 0,
+          comments: row.comments || 0,
+          category: row.category_id
+        },
+        favorited_at: row.favorited_at
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
     };
   },
   async delete(id: string) {

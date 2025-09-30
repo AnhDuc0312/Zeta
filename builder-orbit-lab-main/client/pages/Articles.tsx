@@ -15,12 +15,13 @@ import {
 import Layout from "../components/Layout";
 
 interface Article {
-  id: number;
+  id: string;
   title: string;
   description: string;
   category: string;
   date: string;
   author: string;
+  author_name?: string;
   readTime: string;
   views: number;
   likes: number;
@@ -31,7 +32,7 @@ interface Article {
 
 export default function Articles() {
   const navigate = useNavigate();
-  const [gridLayout, setGridLayout] = useState<"2x2" | "3x3">("2x2");
+  const [gridLayout, setGridLayout] = useState<"3x3" | "4x4">("3x3");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
@@ -90,23 +91,24 @@ export default function Articles() {
       .finally(() => setLoading(false));
   }, [currentPage, itemsPerPage, searchQuery, selectedCategory, sortBy]);
 
+  const formatNumber = (num: number | undefined) => {
+    if (!num || isNaN(num)) return "0";
+    if (num >= 1000) return (num / 1000).toFixed(1) + "k";
+    return num.toString();
+  };
+
   const categories = [
     "all",
-    ...Array.from(new Set(articles.map((a) => a.category))),
+    ...Array.from(new Set(articles.map((a) => a.category).filter(Boolean))),
   ];
 
   const totalPages = Math.ceil(totalArticles / itemsPerPage);
   const paginatedArticles = articles; // Đã phân trang và filter ở backend
 
   const gridCols =
-    gridLayout === "2x2"
-      ? "grid-cols-1 md:grid-cols-2"
-      : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
-
-  const formatNumber = (num: number) => {
-    if (num >= 1000) return (num / 1000).toFixed(1) + "k";
-    return num.toString();
-  };
+    gridLayout === "3x3"
+      ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+      : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -131,17 +133,6 @@ export default function Articles() {
         <div className="flex items-center gap-4 mt-4 md:mt-0">
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button
-              onClick={() => setGridLayout("2x2")}
-              className={`p-2 rounded transition-colors ${
-                gridLayout === "2x2"
-                  ? "bg-white text-black shadow-sm"
-                  : "text-gray-600 hover:text-black"
-              }`}
-              title="2x2 Grid"
-            >
-              <Grid2X2 className="w-4 h-4" />
-            </button>
-            <button
               onClick={() => setGridLayout("3x3")}
               className={`p-2 rounded transition-colors ${
                 gridLayout === "3x3"
@@ -151,6 +142,17 @@ export default function Articles() {
               title="3x3 Grid"
             >
               <Grid3X3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setGridLayout("4x4")}
+              className={`p-2 rounded transition-colors ${
+                gridLayout === "4x4"
+                  ? "bg-white text-black shadow-sm"
+                  : "text-gray-600 hover:text-black"
+              }`}
+              title="4x4 Grid"
+            >
+              <Grid2X2 className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -239,11 +241,16 @@ export default function Articles() {
 
       {/* Articles Grid */}
       <div className={`grid ${gridCols} gap-6 mb-8`}>
-        {paginatedArticles.map((article) => (
+        {loading ? (
+          <div className="col-span-full text-center py-8 text-gray-500">Loading articles...</div>
+        ) : paginatedArticles.length === 0 ? (
+          <div className="col-span-full text-center py-8 text-gray-400">No articles found.</div>
+        ) : (
+          paginatedArticles.map((article) => (
           <article
             key={article.id}
             onClick={() => navigate(`/articles/${article.id}`)}
-            className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group"
+            className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group relative h-full flex flex-col"
           >
             {/* Featured Badge */}
             {article.featured && (
@@ -264,54 +271,59 @@ export default function Articles() {
             </div>
 
             {/* Article Content */}
-            <div className="p-6">
+            <div className="p-6 flex flex-col flex-1">
               {/* Category and Date */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 min-h-[1.5rem]">
                 <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded font-medium">
-                  {article.category}
+                  {article.category || "Uncategorized"}
                 </span>
-                <span className="text-xs text-gray-500">{article.date}</span>
+                <span className="text-xs text-gray-500">{article.created_at ? new Date(article.created_at).toLocaleDateString() : ""}</span>
               </div>
 
               {/* Title */}
-              <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-black transition-colors line-clamp-2">
+              <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-black transition-colors line-clamp-2 min-h-[3rem]">
                 {article.title}
               </h3>
 
               {/* Description */}
-              <p className="text-sm text-gray-600 line-clamp-3 mb-4">
-                {article.description}
+              <p className="text-sm text-gray-600 line-clamp-3 mb-4 min-h-[4.5rem]">
+                {article.description || "No description available"}
               </p>
 
+              {/* Spacer to push content to bottom */}
+              <div className="flex-1"></div>
+
               {/* Author and Read Time */}
-              <div className="flex items-center gap-4 mb-3 text-xs text-gray-500">
-                <span>By {article.author}</span>
+              <div className="flex items-center gap-4 mb-3 text-xs text-gray-500 min-h-[1.5rem]">
+                <span>By {article.author_name || article.author || "Unknown"}</span>
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  {article.readTime}
+                  {article.readTime || "5 min read"}
                 </span>
+                <span>{article.created_at ? new Date(article.created_at).toLocaleDateString() : "Unknown date"}</span>
               </div>
 
-              {/* Engagement Stats */}
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <Eye className="w-3 h-3" />
-                    {formatNumber(article.views)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Heart className="w-3 h-3" />
-                    {formatNumber(article.likes)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <MessageCircle className="w-3 h-3" />
-                    {article.comments}
-                  </span>
+              {/* Stats */}
+              <div className="flex items-center justify-between text-sm min-h-[2rem]">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <Eye className="w-4 h-4 text-gray-400" />
+                    <span>{formatNumber(article.views)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Heart className="w-4 h-4 text-red-400" />
+                    <span>{formatNumber(article.likes)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <MessageCircle className="w-4 h-4 text-blue-400" />
+                    <span>{formatNumber(article.comments)}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </article>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Pagination */}

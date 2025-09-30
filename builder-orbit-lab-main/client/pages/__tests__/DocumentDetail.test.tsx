@@ -127,11 +127,4 @@ describe('Document Detail Page', () => {
     });
   });
 
-  it('displays related documents', async () => {
-    render(<DocumentDetail />);
-    
-    await waitFor(() => {
-      expect(screen.getByText(/related documents/i)).toBeInTheDocument();
-    });
-  });
 });

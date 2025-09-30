@@ -199,20 +199,6 @@ router.post('/:id/duplicate', ContentController.duplicate);
  *     responses:
  *       200:
  *         description: Content liked
- *
- * /content/{id}/bookmark:
- *   post:
- *     summary: Bookmark content
- *     tags: [Content]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Content bookmarked
  */
 router.get('/:id/comments', ContentController.listComments);
 router.post('/:id/comments', ContentController.addComment);
@@ -220,6 +206,5 @@ router.delete('/comments/:commentId', ContentController.deleteComment);
 router.post('/:id/like', authenticateJWT, ContentController.like);
 router.delete('/:id/like', authenticateJWT, ContentController.unlike);
 router.get('/:id/like-status', authenticateJWT, ContentController.getLikeStatus);
-router.post('/:id/bookmark', ContentController.bookmark);
 
 export default router;

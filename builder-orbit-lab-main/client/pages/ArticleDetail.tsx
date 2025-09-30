@@ -14,6 +14,8 @@ import {
 import Layout from "../components/Layout";
 import { markdownToHtml, processImageUrls, enhanceContent } from "../lib/markdown";
 import { useSEO } from "../hooks/useSEO";
+import { useToast } from "../hooks/use-toast";
+import CommentSection from "../components/CommentSection";
 
 export default function ArticleDetail() {
   const { id } = useParams();
@@ -25,6 +27,91 @@ export default function ArticleDetail() {
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [isLiking, setIsLiking] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isBookmarking, setIsBookmarking] = useState(false);
+  const { toast } = useToast();
+
+  // Handle share
+  const handleShare = async () => {
+    const shareData = {
+      title: article?.title || 'Article',
+      text: article?.description || '',
+      url: window.location.href
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        // User cancelled or error occurred
+        console.log('Share cancelled or failed');
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        toast({
+          title: "Link copied!",
+          description: "Article link has been copied to your clipboard.",
+        });
+      } catch (err) {
+        console.error('Failed to copy link:', err);
+        toast({
+          title: "Copy failed",
+          description: "Unable to copy link to clipboard.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Handle bookmark/unbookmark
+  const handleBookmark = async () => {
+    if (isBookmarking) return;
+    
+    setIsBookmarking(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      const response = await fetch(`/api/content/${id}/bookmark`, {
+        method: isBookmarked ? "DELETE" : "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        setIsBookmarked(!isBookmarked);
+        toast({
+          title: isBookmarked ? "Removed from bookmarks" : "Added to bookmarks",
+          description: isBookmarked 
+            ? "Article has been removed from your bookmarks." 
+            : "Article has been added to your bookmarks.",
+        });
+      } else {
+        console.error("Failed to toggle bookmark");
+        toast({
+          title: "Bookmark failed",
+          description: "Unable to update bookmark. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error toggling bookmark:", error);
+      toast({
+        title: "Bookmark failed",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBookmarking(false);
+    }
+  };
 
   // Handle like/unlike
   const handleLike = async () => {
@@ -141,8 +228,29 @@ export default function ArticleDetail() {
       }
     };
 
+    const checkBookmarkStatus = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const response = await fetch(`/api/content/${id}/bookmark-status`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setIsBookmarked(data.isBookmarked);
+        }
+      } catch (error) {
+        console.error("Error checking bookmark status:", error);
+      }
+    };
+
     if (id) {
       checkLikeStatus();
+      checkBookmarkStatus();
     }
   }, [id]);
 
@@ -188,20 +296,6 @@ export default function ArticleDetail() {
     );
   }
 
-  const relatedArticles = [
-    {
-      id: 2,
-      title: "Building Modern React Applications",
-      author: "John Doe",
-      readTime: "6 min read",
-    },
-    {
-      id: 3,
-      title: "CSS Grid vs Flexbox",
-      author: "Jane Smith",
-      readTime: "4 min read",
-    },
-  ];
 
   return (
     <Layout>
@@ -262,10 +356,10 @@ export default function ArticleDetail() {
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div>
             {/* Main Content */}
-            <article className="lg:col-span-3">
+            <article>
               {/* Featured Image */}
               <div className="aspect-[16/9] bg-gray-200 rounded-lg mb-8 overflow-hidden">
                 <img 
@@ -323,49 +417,42 @@ export default function ArticleDetail() {
                       <span className="font-medium">{article.comments || 0}</span>
                     </button>
 
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-black hover:bg-gray-50 transition-all duration-200">
+                    <button 
+                      onClick={handleShare}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-black hover:bg-gray-50 transition-all duration-200"
+                    >
                       <Share2 className="w-5 h-5" />
                       <span className="font-medium">Share</span>
                     </button>
 
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-black hover:bg-gray-50 transition-all duration-200">
-                      <BookmarkPlus className="w-5 h-5" />
-                      <span className="font-medium">Bookmark</span>
+                    <button 
+                      onClick={handleBookmark}
+                      disabled={isBookmarking}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                        isBookmarked
+                          ? 'text-blue-500 bg-blue-50 hover:bg-blue-100'
+                          : 'text-gray-600 hover:text-blue-500 hover:bg-gray-50'
+                      } ${isBookmarking ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <BookmarkPlus className={`w-5 h-5 ${isBookmarked ? 'fill-current' : ''}`} />
+                      <span className="font-medium">{isBookmarked ? 'Bookmarked' : 'Bookmark'}</span>
+                      {isBookmarking && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>}
                     </button>
                   </div>
                 </div>
               </div>
             </article>
 
-            {/* Sidebar */}
-            <aside className="lg:col-span-1">
-              <div className="sticky top-8">
-                {/* Related Articles */}
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-black mb-4">Related Articles</h3>
-                  <div className="space-y-4">
-                    {relatedArticles.map((related) => (
-                      <div
-                        key={related.id}
-                        className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors group"
-                      >
-                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0 group-hover:scale-105 transition-transform"></div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-black text-sm line-clamp-2 mb-1 group-hover:text-gray-600 transition-colors">
-                            {related.title}
-                          </h4>
-                          <p className="text-xs text-gray-500 mb-1">{related.author}</p>
-                          <p className="text-xs text-gray-400">{related.readTime}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </aside>
           </div>
         </div>
       </div>
+      
+      {/* Comments Section */}
+      {article && (
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <CommentSection contentId={article.id} />
+        </div>
+      )}
     </Layout>
   );
 }

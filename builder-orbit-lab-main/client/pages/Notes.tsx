@@ -31,7 +31,7 @@ interface Note {
 
 export default function Notes() {
   const navigate = useNavigate();
-  const [gridLayout, setGridLayout] = useState<"2x2" | "3x3">("2x2");
+  const [gridLayout, setGridLayout] = useState<"3x3" | "4x4">("3x3");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
@@ -119,9 +119,9 @@ export default function Notes() {
   const paginatedNotes = notes; // Đã phân trang và filter ở backend
 
   const gridCols =
-    gridLayout === "2x2"
-      ? "grid-cols-1 md:grid-cols-2"
-      : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
+    gridLayout === "3x3"
+      ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+      : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
   const getColorClasses = (color: string) => {
     const colorMap = {
@@ -180,17 +180,6 @@ export default function Notes() {
           {/* Đã xóa nút New Note */}
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button
-              onClick={() => setGridLayout("2x2")}
-              className={`p-2 rounded transition-colors ${
-                gridLayout === "2x2"
-                  ? "bg-white text-black shadow-sm"
-                  : "text-gray-600 hover:text-black"
-              }`}
-              title="2x2 Grid"
-            >
-              <Grid2X2 className="w-4 h-4" />
-            </button>
-            <button
               onClick={() => setGridLayout("3x3")}
               className={`p-2 rounded transition-colors ${
                 gridLayout === "3x3"
@@ -200,6 +189,17 @@ export default function Notes() {
               title="3x3 Grid"
             >
               <Grid3X3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setGridLayout("4x4")}
+              className={`p-2 rounded transition-colors ${
+                gridLayout === "4x4"
+                  ? "bg-white text-black shadow-sm"
+                  : "text-gray-600 hover:text-black"
+              }`}
+              title="4x4 Grid"
+            >
+              <Grid2X2 className="w-4 h-4" />
             </button>
           </div>
         </div>

@@ -349,7 +349,7 @@ export const ContentRepository = {
       );
       
       // Only update likes count if a row was actually deleted
-      if (deleteResult.rowCount > 0) {
+      if (deleteResult.rowCount && deleteResult.rowCount > 0) {
         await client.query(
           'UPDATE content SET likes = GREATEST(likes - 1, 0) WHERE id = $1',
           [contentId]

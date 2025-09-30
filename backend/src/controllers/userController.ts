@@ -65,7 +65,16 @@ export const UserController = {
       const user = (req as any).user;
       if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-      const favorites = await UserService.getUserFavorites(user.id);
+      const { page, limit, type, sort, search } = req.query;
+      const options = {
+        page: page ? parseInt(page as string) : 1,
+        limit: limit ? parseInt(limit as string) : 20,
+        type: type as string || 'all',
+        sort: sort as string || 'newest',
+        search: search as string || ''
+      };
+
+      const favorites = await UserService.getUserFavorites(user.id, options);
       res.json(favorites);
     } catch (error) {
       console.error('Get user favorites error:', error);

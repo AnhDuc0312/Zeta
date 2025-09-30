@@ -68,6 +68,7 @@ export default function Account() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
+
   // Stats state
   const [stats, setStats] = useState({
     articles: 0,
@@ -77,14 +78,6 @@ export default function Account() {
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // Favorites state
-  const [favorites, setFavorites] = useState({
-    articles: [],
-    documents: [],
-    notes: [],
-  });
-  const [favoritesLoading, setFavoritesLoading] = useState(true);
-  const [activeFavoritesTab, setActiveFavoritesTab] = useState<'articles' | 'documents' | 'notes'>('articles');
 
   useEffect(() => {
     document.title = "My Account - ZetaScript";
@@ -117,32 +110,7 @@ export default function Account() {
     loadStats();
   }, []);
 
-  // Load user favorites
-  useEffect(() => {
-    const loadFavorites = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
 
-        const response = await fetch("/api/users/favorites", {
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setFavorites(data);
-        }
-      } catch (error) {
-        console.error("Failed to load favorites:", error);
-      } finally {
-        setFavoritesLoading(false);
-      }
-    };
-
-    loadFavorites();
-  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -163,14 +131,14 @@ export default function Account() {
             setProfileData((prev) => ({
               ...prev,
               name: data.name || fallbackName,
-              email: data.email || prev?.email || "",
+              email: data.email || user?.email || "",
               bio: data.bio || "",
               location: data.location || "",
               website: data.website || "",
             }));
             setEditData({
               name: data.name || fallbackName,
-              email: data.email || prev?.email || "",
+              email: data.email || user?.email || "",
               bio: data.bio || "",
               location: data.location || "",
               website: data.website || "",
@@ -596,106 +564,7 @@ export default function Account() {
               </div>
             </div>
 
-            {/* Favorites */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-black mb-6">
-                Your Favorites
-              </h2>
-              
-              {/* Favorites Tabs */}
-              <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setActiveFavoritesTab('articles')}
-                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
-                    activeFavoritesTab === 'articles'
-                      ? 'bg-white text-black shadow-sm'
-                      : 'text-gray-600 hover:text-black'
-                  }`}
-                >
-                  Articles ({favorites.articles.length})
-                </button>
-                <button
-                  onClick={() => setActiveFavoritesTab('documents')}
-                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
-                    activeFavoritesTab === 'documents'
-                      ? 'bg-white text-black shadow-sm'
-                      : 'text-gray-600 hover:text-black'
-                  }`}
-                >
-                  Documents ({favorites.documents.length})
-                </button>
-                <button
-                  onClick={() => setActiveFavoritesTab('notes')}
-                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
-                    activeFavoritesTab === 'notes'
-                      ? 'bg-white text-black shadow-sm'
-                      : 'text-gray-600 hover:text-black'
-                  }`}
-                >
-                  Notes ({favorites.notes.length})
-                </button>
-              </div>
 
-              {/* Favorites Content */}
-              <div className="space-y-4 max-h-96 overflow-y-auto">
-                {favoritesLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto"></div>
-                    <p className="text-sm text-gray-500 mt-2">Loading favorites...</p>
-                  </div>
-                ) : (
-                  (() => {
-                    const currentFavorites = favorites[activeFavoritesTab];
-                    if (currentFavorites.length === 0) {
-                      return (
-                        <div className="text-center py-8">
-                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <FileText className="w-8 h-8 text-gray-400" />
-                          </div>
-                          <p className="text-gray-500">No {activeFavoritesTab} in favorites yet</p>
-                          <p className="text-sm text-gray-400 mt-1">
-                            Like some {activeFavoritesTab} to see them here
-                          </p>
-                        </div>
-                      );
-                    }
-
-                    return currentFavorites.map((item: any) => (
-                      <div
-                        key={item.id}
-                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/${activeFavoritesTab}/${item.id}`)}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-black mb-2 line-clamp-2 break-words">
-                              {item.title}
-                            </h3>
-                            <p className="text-sm text-gray-600 mb-2 line-clamp-2 break-words">
-                              {item.description}
-                            </p>
-                            <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                              <span className="truncate">By {item.author_name}</span>
-                              <span className="whitespace-nowrap">
-                                {new Date(item.created_at).toLocaleDateString()}
-                              </span>
-                              <span className="whitespace-nowrap">{item.views || 0} views</span>
-                            </div>
-                          </div>
-                          <div className="flex-shrink-0">
-                            <img
-                              src="/unnamed.png"
-                              alt={item.title}
-                              className="w-16 h-16 object-cover rounded-lg"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ));
-                  })()
-                )}
-              </div>
-            </div>
 
             {/* Quick Actions */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">

@@ -40,15 +40,17 @@ app.get('/', (req: Request, res: Response) => {
   res.send('Builder Orbit Lab API is running');
 });
 
-// Chỉ kiểm tra kết nối DB, không gọi app.listen ở đây
-pool
-  .query('SELECT 1')
-  .then(() => {
-    console.log('Database connected!');
-  })
-  .catch((err: any) => {
-    console.error('Database connection failed:', err);
-    process.exit(1);
-  });
+// Chỉ kiểm tra kết nối DB khi không phải test environment
+if (process.env.NODE_ENV !== 'test') {
+  pool
+    .query('SELECT 1')
+    .then(() => {
+      console.log('Database connected!');
+    })
+    .catch((err: any) => {
+      console.error('Database connection failed:', err);
+      process.exit(1);
+    });
+}
 
 export default app;

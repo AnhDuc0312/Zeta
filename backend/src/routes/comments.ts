@@ -1,5 +1,7 @@
 import express from 'express';
 import { CommentController, validateComment, handleValidation } from '../controllers/commentController';
+import { authenticateJWT } from '../middleware/authMiddleware';
+
 const router = express.Router();
 
 /**
@@ -42,8 +44,8 @@ const router = express.Router();
  */
 router.get('/', CommentController.list);
 router.get('/:id', CommentController.get);
-router.post('/', validateComment, handleValidation, CommentController.create);
-router.put('/:id', CommentController.update);
-router.delete('/:id', CommentController.remove);
+router.post('/', authenticateJWT, validateComment, handleValidation, CommentController.create);
+router.put('/:id', authenticateJWT, CommentController.update);
+router.delete('/:id', authenticateJWT, CommentController.remove);
 
 export default router;

@@ -1,134 +1,327 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '../../test-utils';
-import { mockApiResponses, mockFetch } from '../../test-utils';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from '../../contexts/AuthContext';
+import { ToastProvider } from '../../contexts/ToastContext';
 import Articles from '../Articles';
 
+// Mock fetch
+global.fetch = vi.fn();
+
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
+
+const renderWithProviders = (component: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            {component}
+          </BrowserRouter>
+        </ToastProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
+
 describe('Articles Page', () => {
+  const mockArticles = [
+    {
+      id: '1',
+      title: 'Test Article 1',
+      description: 'Test description 1',
+      category: 'Technology',
+      author_name: 'Test Author 1',
+      created_at: '2024-01-01T00:00:00Z',
+      readTime: '5 min read',
+      views: 100,
+      likes: 10,
+      comments: 5,
+      featured: false,
+      tags: ['react', 'typescript']
+    },
+    {
+      id: '2',
+      title: 'Test Article 2',
+      description: 'Test description 2',
+      category: 'Business',
+      author_name: 'Test Author 2',
+      created_at: '2024-01-02T00:00:00Z',
+      readTime: '3 min read',
+      views: 50,
+      likes: 5,
+      comments: 2,
+      featured: true,
+      tags: ['business', 'strategy']
+    }
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch(mockApiResponses.articles);
+    (fetch as any).mockClear();
   });
 
-  it('renders articles page with title and filters', () => {
-    render(<Articles />);
-    
+  it('renders page title and description', () => {
+    renderWithProviders(<Articles />);
+
     expect(screen.getByText('Articles')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/search articles/i)).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /category/i })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /sort by/i })).toBeInTheDocument();
+    expect(screen.getByText('Discover insightful articles and in-depth content')).toBeInTheDocument();
   });
 
-  it('displays loading state initially', () => {
-    render(<Articles />);
-    
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+  it('renders filter controls', () => {
+    renderWithProviders(<Articles />);
+
+    expect(screen.getByText('Filter by Category')).toBeInTheDocument();
+    expect(screen.getByText('Sort by')).toBeInTheDocument();
+    expect(screen.getByText('All')).toBeInTheDocument();
   });
 
-  it('displays articles after loading', async () => {
-    render(<Articles />);
-    
+  it('loads and displays articles', async () => {
+    (fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: mockArticles
+      })
+    });
+
+    renderWithProviders(<Articles />);
+
     await waitFor(() => {
       expect(screen.getByText('Test Article 1')).toBeInTheDocument();
       expect(screen.getByText('Test Article 2')).toBeInTheDocument();
     });
   });
 
-  it('handles search functionality', async () => {
-    render(<Articles />);
-    
-    const searchInput = screen.getByPlaceholderText(/search articles/i);
-    fireEvent.change(searchInput, { target: { value: 'test search' } });
-    
+  it('displays article metadata correctly', async () => {
+    (fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [mockArticles[0]]
+      })
+    });
+
+    renderWithProviders(<Articles />);
+
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('search=test%20search')
-      );
+      expect(screen.getByText('Test Article 1')).toBeInTheDocument();
+      expect(screen.getByText('Test description 1')).toBeInTheDocument();
+      expect(screen.getByText('Technology')).toBeInTheDocument();
+      expect(screen.getByText('By Test Author 1')).toBeInTheDocument();
+      expect(screen.getByText('5 min read')).toBeInTheDocument();
+      expect(screen.getByText('100')).toBeInTheDocument(); // views
+      expect(screen.getByText('10')).toBeInTheDocument(); // likes
+      expect(screen.getByText('5')).toBeInTheDocument(); // comments
     });
   });
 
-  it('handles category filter', async () => {
-    render(<Articles />);
-    
-    const categorySelect = screen.getByRole('combobox', { name: /category/i });
-    fireEvent.change(categorySelect, { target: { value: 'Technology' } });
-    
+  it('filters articles by category', async () => {
+    const user = userEvent.setup();
+    (fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: mockArticles
+      })
+    });
+
+    renderWithProviders(<Articles />);
+
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('category=Technology')
-      );
+      expect(screen.getByText('Test Article 1')).toBeInTheDocument();
+      expect(screen.getByText('Test Article 2')).toBeInTheDocument();
+    });
+
+    const categoryFilter = screen.getByRole('combobox');
+    await user.click(categoryFilter);
+    
+    const technologyOption = screen.getByText('Technology');
+    await user.click(technologyOption);
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Article 1')).toBeInTheDocument();
+      expect(screen.queryByText('Test Article 2')).not.toBeInTheDocument();
     });
   });
 
-  it('handles sort functionality', async () => {
-    render(<Articles />);
-    
-    const sortSelect = screen.getByRole('combobox', { name: /sort by/i });
-    fireEvent.change(sortSelect, { target: { value: 'oldest' } });
-    
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('sort=oldest')
-      );
+  it('sorts articles by different criteria', async () => {
+    const user = userEvent.setup();
+    (fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: mockArticles
+      })
     });
-  });
 
-  it('handles pagination', async () => {
-    render(<Articles />);
-    
+    renderWithProviders(<Articles />);
+
     await waitFor(() => {
       expect(screen.getByText('Test Article 1')).toBeInTheDocument();
     });
-    
-    // Test pagination buttons
-    const nextButton = screen.getByRole('button', { name: /next/i });
-    if (nextButton) {
-      fireEvent.click(nextButton);
-      
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('page=2')
-        );
-      });
-    }
-  });
 
-  it('displays empty state when no articles', async () => {
-    mockFetch({ data: [], total: 0, page: 1, limit: 12 });
-    render(<Articles />);
+    const sortSelect = screen.getByDisplayValue('Recent');
+    await user.click(sortSelect);
     
-    await waitFor(() => {
-      expect(screen.getByText(/no articles found/i)).toBeInTheDocument();
-    });
-  });
+    const viewsOption = screen.getByText('Most Views');
+    await user.click(viewsOption);
 
-  it('handles error state', async () => {
-    mockFetch({}, 500);
-    render(<Articles />);
-    
-    await waitFor(() => {
-      expect(screen.getByText(/failed to fetch articles/i)).toBeInTheDocument();
-    });
+    // Should re-render with sorted articles
+    expect(screen.getByText('Most Views')).toBeInTheDocument();
   });
 
   it('navigates to article detail when clicked', async () => {
-    render(<Articles />);
-    
+    const user = userEvent.setup();
+    (fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [mockArticles[0]]
+      })
+    });
+
+    renderWithProviders(<Articles />);
+
     await waitFor(() => {
       expect(screen.getByText('Test Article 1')).toBeInTheDocument();
     });
-    
-    const articleLink = screen.getByRole('link', { name: /test article 1/i });
-    expect(articleLink).toHaveAttribute('href', '/articles/1');
+
+    const articleCard = screen.getByText('Test Article 1').closest('article');
+    await user.click(articleCard!);
+
+    expect(window.location.pathname).toBe('/articles/1');
   });
 
-  it('displays article metadata correctly', async () => {
-    render(<Articles />);
-    
+  it('shows loading state', () => {
+    (fetch as any).mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      }), 100))
+    );
+
+    renderWithProviders(<Articles />);
+
+    expect(screen.getByText('Loading articles...')).toBeInTheDocument();
+  });
+
+  it('shows empty state when no articles', async () => {
+    (fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: []
+      })
+    });
+
+    renderWithProviders(<Articles />);
+
     await waitFor(() => {
-      expect(screen.getByText('Test Author')).toBeInTheDocument();
-      expect(screen.getByText('Technology')).toBeInTheDocument();
-      expect(screen.getByText('100 views')).toBeInTheDocument();
-      expect(screen.getByText('10 likes')).toBeInTheDocument();
+      expect(screen.getByText('No articles found')).toBeInTheDocument();
+      expect(screen.getByText('Try adjusting your filters or check back later')).toBeInTheDocument();
     });
   });
+
+  it('handles API error', async () => {
+    (fetch as any).mockRejectedValueOnce(new Error('API Error'));
+
+    renderWithProviders(<Articles />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No articles found')).toBeInTheDocument();
+    });
+  });
+
+  it('displays featured badge for featured articles', async () => {
+    (fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [mockArticles[1]] // featured article
+      })
+    });
+
+    renderWithProviders(<Articles />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Featured')).toBeInTheDocument();
+    });
+  });
+
+  it('formats numbers correctly', async () => {
+    const articleWithLargeNumbers = {
+      ...mockArticles[0],
+      views: 1500,
+      likes: 1200,
+      comments: 300
+    };
+
+    (fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [articleWithLargeNumbers]
+      })
+    });
+
+    renderWithProviders(<Articles />);
+
+    await waitFor(() => {
+      expect(screen.getByText('1.5k')).toBeInTheDocument(); // views
+      expect(screen.getByText('1.2k')).toBeInTheDocument(); // likes
+      expect(screen.getByText('300')).toBeInTheDocument(); // comments
+    });
+  });
+
+  it('handles missing data gracefully', async () => {
+    const incompleteArticle = {
+      id: '1',
+      title: 'Incomplete Article',
+      // missing other fields
+    };
+
+    (fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [incompleteArticle]
+      })
+    });
+
+    renderWithProviders(<Articles />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Incomplete Article')).toBeInTheDocument();
+      expect(screen.getByText('No description available')).toBeInTheDocument();
+      expect(screen.getByText('By Unknown')).toBeInTheDocument();
+      expect(screen.getByText('5 min read')).toBeInTheDocument(); // fallback
+    });
+  });
+
+  it('updates category filter options based on loaded articles', async () => {
+    (fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: mockArticles
+      })
+    });
+
+    renderWithProviders(<Articles />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Technology')).toBeInTheDocument();
+      expect(screen.getByText('Business')).toBeInTheDocument();
+    });
+  });
+});
 });

@@ -16,6 +16,8 @@ import adminAnalyticsRoutes from './adminAnalytics';
 import adminActivityLogRoutes from './adminActivityLogs';
 import adminSettingsRoutes from './adminSettings';
 import accountRoutes from './account';
+import bookmarkRoutes from './bookmarks';
+import imageRoutes from './images';
 // Add other routers as needed
 
 const routes = express.Router();
@@ -33,6 +35,8 @@ routes.use('/search', searchRoutes);
 routes.use('/upload', uploadRoutes);
 routes.use('/health', healthRoutes);
 routes.use('/account', accountRoutes);
+routes.use('/', bookmarkRoutes);
+routes.use('/images', imageRoutes);
 routes.use('/admin/users', adminUserRoutes);
 routes.use('/admin/analytics', adminAnalyticsRoutes);
 routes.use('/admin/activity-logs', adminActivityLogRoutes);

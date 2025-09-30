@@ -29,7 +29,7 @@ interface SearchFilters {
 
 export default function Search() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [gridLayout, setGridLayout] = useState<"2x2" | "3x3">("2x2");
+  const [gridLayout, setGridLayout] = useState<"3x3" | "4x4">("3x3");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({
     name: "",
@@ -48,9 +48,15 @@ export default function Search() {
 
   useEffect(() => {
     if (searchQuery) {
-      fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`)
+      fetch(`/api/search?q=${encodeURIComponent(searchQuery)}&limit=20`)
         .then(res => res.json())
-        .then(data => setResults(data));
+        .then(data => setResults(data.data || []))
+        .catch(error => {
+          console.error("Search error:", error);
+          setResults([]);
+        });
+    } else {
+      setResults([]);
     }
   }, [searchQuery]);
 
@@ -75,30 +81,31 @@ export default function Search() {
     .filter((item) => {
       const matchesSearch =
         searchQuery === "" ||
-        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase());
+        item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesName =
         filters.name === "" ||
-        item.title.toLowerCase().includes(filters.name.toLowerCase());
+        item.title?.toLowerCase().includes(filters.name.toLowerCase());
 
       const matchesYear =
-        filters.year === "" || item.year.toString() === filters.year;
+        filters.year === "" || 
+        (item.created_at && new Date(item.created_at).getFullYear().toString() === filters.year);
 
       const matchesTag =
         filters.tag === "" ||
-        item.tags.some((tag) =>
+        (item.tags && item.tags.some((tag) =>
           tag.toLowerCase().includes(filters.tag.toLowerCase()),
-        );
+        ));
 
       const matchesCategory =
         filters.category === "" || item.category === filters.category;
 
       const matchesViews =
-        filters.minViews === "" || item.views >= parseInt(filters.minViews);
+        filters.minViews === "" || (item.views || 0) >= parseInt(filters.minViews);
 
       const matchesNomination =
-        filters.nomination === "" || item.nomination === filters.nomination;
+        filters.nomination === "" || item.featured === (filters.nomination === "Featured");
 
       return (
         matchesSearch &&
@@ -113,22 +120,22 @@ export default function Search() {
     .sort((a, b) => {
       switch (filters.sortBy) {
         case "views":
-          return b.views - a.views;
+          return (b.views || 0) - (a.views || 0);
         case "title":
-          return a.title.localeCompare(b.title);
+          return (a.title || "").localeCompare(b.title || "");
         case "category":
-          return a.category.localeCompare(b.category);
+          return (a.category || "").localeCompare(b.category || "");
         case "year":
-          return b.year - a.year;
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
         default: // recent
-          return new Date(b.date).getTime() - new Date(a.date).getTime();
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
       }
     });
 
   const gridCols =
-    gridLayout === "2x2"
-      ? "grid-cols-1 md:grid-cols-2"
-      : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
+    gridLayout === "3x3"
+      ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+      : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
   const getContentIcon = (type: string) => {
     switch (type) {
@@ -185,16 +192,6 @@ export default function Search() {
             </button>
             <div className="flex items-center bg-gray-100 rounded-lg p-1">
               <button
-                onClick={() => setGridLayout("2x2")}
-                className={`p-2 rounded transition-colors ${
-                  gridLayout === "2x2"
-                    ? "bg-white text-black shadow-sm"
-                    : "text-gray-600 hover:text-black"
-                }`}
-              >
-                <Grid2X2 className="w-4 h-4" />
-              </button>
-              <button
                 onClick={() => setGridLayout("3x3")}
                 className={`p-2 rounded transition-colors ${
                   gridLayout === "3x3"
@@ -203,6 +200,16 @@ export default function Search() {
                 }`}
               >
                 <Grid3X3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setGridLayout("4x4")}
+                className={`p-2 rounded transition-colors ${
+                  gridLayout === "4x4"
+                    ? "bg-white text-black shadow-sm"
+                    : "text-gray-600 hover:text-black"
+                }`}
+              >
+                <Grid2X2 className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -399,40 +406,46 @@ export default function Search() {
                       {item.type}
                     </span>
                   </div>
-                  {item.nomination && (
+                  {item.featured && (
                     <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded">
-                      {item.nomination}
+                      Featured
                     </span>
                   )}
                 </div>
 
                 <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-black transition-colors line-clamp-2">
-                  {item.title}
+                  {item.title || "Untitled"}
                 </h3>
 
                 <p className="text-sm text-gray-600 line-clamp-3 mb-4">
-                  {item.description}
+                  {item.description || "No description available"}
                 </p>
 
-                <div className="flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                   <div className="flex items-center gap-4">
-                    <span>{item.category}</span>
-                    <span>{item.year}</span>
-                    <span>{item.views} views</span>
+                    <span>{item.category || "Uncategorized"}</span>
+                    <span>{item.views || 0} views</span>
+                    <span>{item.likes || 0} likes</span>
                   </div>
-                  <span>{item.date}</span>
+                  <span>{item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}</span>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {item.tags.slice(0, 2).map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>By {item.author_name || item.author || "Unknown"}</span>
                 </div>
+
+                {item.tags && item.tags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {item.tags.slice(0, 2).map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}
