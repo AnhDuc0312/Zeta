@@ -1,4 +1,4 @@
-# Frontend Dockerfile
+# Alternative Frontend Dockerfile for dependency conflicts
 FROM node:18-alpine AS base
 
 # Install dependencies only when needed
@@ -6,9 +6,11 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat curl
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
+# Copy package files
 COPY package.json package-lock.json* ./
-RUN npm install --legacy-peer-deps
+
+# Install with legacy peer deps and force
+RUN npm install --legacy-peer-deps --force
 
 # Rebuild the source code only when needed
 FROM base AS builder
