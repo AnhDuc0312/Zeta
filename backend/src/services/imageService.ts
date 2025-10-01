@@ -5,8 +5,8 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 // Handle both CommonJS and ES modules
-const __filename = typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url);
-const __dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const UPLOAD_DIR = path.join(__dirname, '../../public/uploads');
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];

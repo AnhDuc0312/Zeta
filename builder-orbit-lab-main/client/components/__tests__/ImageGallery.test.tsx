@@ -243,3 +243,4 @@ describe('ImageGallery', () => {
     expect(screen.queryByRole('button', { name: /add image/i })).not.toBeInTheDocument();
   });
 });
+

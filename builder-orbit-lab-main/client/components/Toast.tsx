@@ -77,3 +77,4 @@ export default function Toast({ toast, onDismiss }: ToastProps) {
     </div>
   );
 }
+

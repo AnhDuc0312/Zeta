@@ -15,7 +15,15 @@
     "test:unit:watch": "jest --testPathPatterns=unit --watch",
     "test:integration:watch": "jest --testPathPatterns=integration --watch",
     "test:unit:coverage": "jest --testPathPatterns=unit --coverage",
-    "test:integration:coverage": "jest --testPathPatterns=integration --coverage"
+    "test:integration:coverage": "jest --testPathPatterns=integration --coverage",
+    "test:all": "npm run test:unit && npm run test:integration",
+    "test:auth": "jest --testNamePattern=@auth",
+    "test:content": "jest --testNamePattern=@content",
+    "test:admin": "jest --testNamePattern=@admin",
+    "test:api": "jest --testNamePattern=@api",
+    "test:performance": "jest --testNamePattern=@performance",
+    "db:setup:test": "tsx scripts/setup-test-db.ts",
+    "db:cleanup:test": "tsx scripts/cleanup-test-db.ts"
   },
   "type": "module",
   "dependencies": {

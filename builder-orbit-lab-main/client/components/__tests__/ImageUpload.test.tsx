@@ -229,3 +229,4 @@ describe('ImageUpload', () => {
     expect(mockOnImageRemoved).toHaveBeenCalled();
   });
 });
+

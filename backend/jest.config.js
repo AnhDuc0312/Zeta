@@ -27,5 +27,11 @@ export default {
   },
   testSequencer: '<rootDir>/tests/sequencer.js',
   globalSetup: '<rootDir>/tests/global-setup.ts',
-  globalTeardown: '<rootDir>/tests/global-teardown.ts'
+  globalTeardown: '<rootDir>/tests/global-teardown.ts',
+  // Add this to handle ESM modules properly
+  transformIgnorePatterns: [
+    'node_modules/(?!(.*\\.mjs$))'
+  ],
+  // Mock modules before tests run
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node']
 };

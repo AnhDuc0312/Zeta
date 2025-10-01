@@ -191,3 +191,4 @@ describe('ImagePreview', () => {
     expect(screen.queryByTitle('Open in new tab')).not.toBeInTheDocument();
   });
 });
+

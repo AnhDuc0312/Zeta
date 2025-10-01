@@ -1,0 +1,24 @@
+{
+  "name": "zeta-cms-e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-end tests for Zeta CMS",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report",
+    "test:install": "playwright install",
+    "test:codegen": "playwright codegen localhost:8080",
+    "test:api": "playwright test --grep @api",
+    "test:auth": "playwright test --grep @auth",
+    "test:content": "playwright test --grep @content",
+    "test:admin": "playwright test --grep @admin"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+

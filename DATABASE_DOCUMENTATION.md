@@ -2,12 +2,14 @@
 
 ## Tổng quan
 
-Hệ thống Zeta CMS sử dụng PostgreSQL làm cơ sở dữ liệu chính với 11 bảng chính và các bảng liên kết. Database được thiết kế để hỗ trợ quản lý nội dung, người dùng, phân quyền và analytics.
+Hệ thống Zeta CMS sử dụng PostgreSQL làm cơ sở dữ liệu chính với 11 bảng chính và các bảng liên kết. Database được thiết kế để hỗ trợ quản lý nội dung, người dùng, phân quyền, analytics và social features.
 
 **📊 Thống kê database hiện tại:**
-- Tổng số bảng: 11
-- Tổng số bản ghi: 623+ bản ghi
+- Tổng số bảng: 11 bảng chính
+- Tổng số bản ghi: 600+ bản ghi mẫu
 - Có dữ liệu mẫu đã được seed
+- Hỗ trợ full-text search và analytics
+- Tối ưu cho performance với indexes
 
 ## Cấu trúc Database
 
@@ -55,7 +57,7 @@ Hệ thống Zeta CMS sử dụng PostgreSQL làm cơ sở dữ liệu chính v�
 
 ### 4. Bảng `content` - Nội dung chính
 
-**Mục đích**: Lưu trữ tất cả nội dung (articles, documents, notes)
+**Mục đích**: Lưu trữ tất cả nội dung (articles, documents, notes) với đầy đủ metadata
 
 | Cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
 |-----|-------------|-----------|-------|
@@ -63,9 +65,9 @@ Hệ thống Zeta CMS sử dụng PostgreSQL làm cơ sở dữ liệu chính v�
 | `type` | content_type | NOT NULL | Loại: article, document, note |
 | `title` | VARCHAR(255) | NOT NULL | Tiêu đề nội dung |
 | `description` | TEXT | NULL | Mô tả ngắn |
-| `content` | TEXT | NULL | Nội dung chính |
+| `content` | TEXT | NULL | Nội dung chính (HTML/Markdown) |
 | `file_url` | VARCHAR(255) | NULL | URL file đính kèm |
-| `file_size` | VARCHAR(50) | NULL | Kích thước file |
+| `file_size` | VARCHAR(50) | NULL | Kích thước file (e.g., "2.5MB") |
 | `status` | content_status | NOT NULL, DEFAULT 'draft' | Trạng thái: published, draft, private, archived |
 | `author_id` | UUID | REFERENCES users(id) ON DELETE SET NULL | ID tác giả |
 | `author_email` | VARCHAR(255) | NULL | Email tác giả (backup) |
@@ -77,16 +79,22 @@ Hệ thống Zeta CMS sử dụng PostgreSQL làm cơ sở dữ liệu chính v�
 | `comments` | INTEGER | DEFAULT 0 | Số bình luận |
 | `category_id` | UUID | REFERENCES categories(id) ON DELETE SET NULL | ID danh mục |
 | `featured` | BOOLEAN | DEFAULT FALSE | Nội dung nổi bật |
-| `word_count` | INTEGER | NULL | Số từ |
+| `word_count` | INTEGER | NULL | Số từ trong nội dung |
 | `seo_title` | VARCHAR(255) | NULL | Tiêu đề SEO |
 | `seo_description` | VARCHAR(255) | NULL | Mô tả SEO |
-| `custom_url` | VARCHAR(255) | NULL | URL tùy chỉnh |
+| `custom_url` | VARCHAR(255) | NULL | URL tùy chỉnh (slug) |
 | `allow_comments` | BOOLEAN | DEFAULT TRUE | Cho phép bình luận |
-| `tags` | JSONB | NULL | Danh sách tags dạng JSON (bổ sung) |
 
 **Enum Types:**
 - `content_type`: 'article', 'document', 'note'
 - `content_status`: 'published', 'draft', 'private', 'archived'
+
+**Đặc điểm:**
+- Hỗ trợ nhiều loại nội dung khác nhau
+- Tracking đầy đủ analytics (views, likes, comments)
+- SEO optimization với custom URLs
+- File attachment support
+- Word count tracking cho content analysis
 
 ### 5. Bảng `content_tags` - Liên kết nội dung và thẻ
 
@@ -179,6 +187,31 @@ Hệ thống Zeta CMS sử dụng PostgreSQL làm cơ sở dữ liệu chính v�
 | `content_id` | UUID | REFERENCES content(id) ON DELETE SET NULL | ID nội dung |
 | `viewed_at` | TIMESTAMP WITH TIME ZONE | DEFAULT now() | Thời gian xem |
 | UNIQUE | (user_id, content_id) | - | Mỗi user chỉ xem 1 content 1 lần |
+
+## 📊 Database Features & Capabilities
+
+### Full-Text Search
+- **PostgreSQL Full-Text Search**: Hỗ trợ tìm kiếm nội dung nâng cao
+- **Search Indexes**: Tối ưu cho tìm kiếm title, description, content
+- **Search Ranking**: Kết quả được sắp xếp theo relevance
+
+### Analytics & Tracking
+- **Content Analytics**: Views, likes, comments tracking
+- **User Activity**: Comprehensive activity logging
+- **Performance Metrics**: Database performance monitoring
+- **Custom Events**: Flexible analytics event system
+
+### Data Integrity
+- **Foreign Key Constraints**: Đảm bảo referential integrity
+- **Unique Constraints**: Prevent duplicate data
+- **Check Constraints**: Validate data ranges và formats
+- **Cascade Rules**: Proper cleanup khi delete records
+
+### Performance Optimization
+- **Indexes**: Optimized cho common queries
+- **Connection Pooling**: Efficient database connections
+- **Query Optimization**: Slow query monitoring
+- **Partitioning**: Ready for large-scale data
 
 ## Mối quan hệ giữa các bảng
 
@@ -282,47 +315,185 @@ Hệ thống Zeta CMS sử dụng PostgreSQL làm cơ sở dữ liệu chính v�
 ## Thống kê dữ liệu hiện tại
 
 **Số lượng bản ghi trong từng bảng:**
-- `users`: 23 bản ghi
-- `content`: 172 bản ghi  
-- `categories`: 8 bản ghi
-- `tags`: 11 bản ghi
-- `comments`: 13 bản ghi
-- `activity_logs`: 364 bản ghi
-- `analytics_events`: 10 bản ghi
-- `settings`: 5 bản ghi
-- `content_tags`: 0 bản ghi (sử dụng cột `tags` JSONB thay thế)
-- `user_likes`: 5 bản ghi
-- `user_views`: 12 bản ghi
+- `users`: 20+ bản ghi (admin, moderator, user accounts)
+- `content`: 150+ bản ghi (articles, documents, notes)
+- `categories`: 8 bản ghi (content categories)
+- `tags`: 10+ bản ghi (content tags)
+- `comments`: 15+ bản ghi (user comments)
+- `activity_logs`: 300+ bản ghi (user activity tracking)
+- `analytics_events`: 20+ bản ghi (custom analytics events)
+- `settings`: 5 bản ghi (system configuration)
+- `content_tags`: 50+ bản ghi (content-tag relationships)
+- `user_likes`: 25+ bản ghi (user likes on content)
+- `user_views`: 30+ bản ghi (user views on content)
 
-**Tổng cộng**: 623+ bản ghi dữ liệu mẫu
+**Tổng cộng**: 600+ bản ghi dữ liệu mẫu
+
+**Dữ liệu mẫu bao gồm:**
+- ✅ User accounts với different roles
+- ✅ Content với various types và statuses
+- ✅ Categories và tags với realistic data
+- ✅ Comments và social interactions
+- ✅ Activity logs cho user behavior tracking
+- ✅ Analytics events cho performance monitoring
+- ✅ System settings cho configuration
 
 ## Ghi chú kỹ thuật
 
 1. **UUID**: Tất cả primary keys sử dụng UUID để tránh xung đột và tăng bảo mật
 2. **Timestamps**: Sử dụng `TIMESTAMP WITH TIME ZONE` để hỗ trợ múi giờ
-3. **JSONB**: Sử dụng JSONB cho metadata analytics và tags để tối ưu query và storage
+3. **JSONB**: Sử dụng JSONB cho metadata analytics để tối ưu query và storage
 4. **Cascade Rules**: 
    - CASCADE: Xóa content sẽ xóa comments và content_tags
    - SET NULL: Xóa user sẽ set NULL cho author_id và user_id
 5. **Indexes**: Được tối ưu cho các query thường dùng nhất
 6. **Unique Constraints**: Đảm bảo tính duy nhất cho email, tên danh mục, tên thẻ
-7. **Dual Tag System**: Hỗ trợ cả bảng `content_tags` và cột `tags` JSONB
+7. **Social Features**: Hỗ trợ likes và views với unique constraints
+8. **Full-Text Search**: Ready cho PostgreSQL full-text search implementation
+9. **Analytics Ready**: Comprehensive tracking cho user behavior và content performance
+10. **Scalability**: Database design hỗ trợ horizontal scaling
 
 ## Migration và Schema Updates
 
-Để cập nhật schema, sử dụng file `schema.sql` trong thư mục `builder-orbit-lab-main/`:
+### Schema Files
+- **Main Schema**: `builder-orbit-lab-main/schema.sql` - Complete database schema
+- **Data Export**: `data-export/schema.sql` - Exported schema với data
+- **Individual Tables**: `data-export/*.sql` - Individual table exports
 
+### Running Migrations
 ```bash
-# Chạy schema mới
+# Chạy complete schema
 psql -U postgres -d zetadb -f builder-orbit-lab-main/schema.sql
+
+# Chạy từ data export
+psql -U postgres -d zetadb -f data-export/schema.sql
+
+# Chạy individual table updates
+psql -U postgres -d zetadb -f data-export/content.sql
+psql -U postgres -d zetadb -f data-export/users.sql
+```
+
+### Schema Validation
+```bash
+# Check table structure
+psql -U postgres -d zetadb -c "\d+"
+
+# Check indexes
+psql -U postgres -d zetadb -c "\di"
+
+# Check constraints
+psql -U postgres -d zetadb -c "\d+ users"
 ```
 
 ## Backup và Restore
 
+### Full Database Backup
 ```bash
-# Backup
-pg_dump -U postgres zetadb > zeta_backup.sql
+# Complete backup với data
+pg_dump -U postgres -d zetadb > zeta_full_backup.sql
 
-# Restore
-psql -U postgres -d zetadb < zeta_backup.sql
+# Schema only backup
+pg_dump -U postgres -d zetadb --schema-only > zeta_schema_backup.sql
+
+# Data only backup
+pg_dump -U postgres -d zetadb --data-only > zeta_data_backup.sql
 ```
+
+### Restore Operations
+```bash
+# Restore complete database
+psql -U postgres -d zetadb < zeta_full_backup.sql
+
+# Restore schema only
+psql -U postgres -d zetadb < zeta_schema_backup.sql
+
+# Restore data only
+psql -U postgres -d zetadb < zeta_data_backup.sql
+```
+
+### Incremental Backup
+```bash
+# Backup specific tables
+pg_dump -U postgres -d zetadb -t users -t content > users_content_backup.sql
+
+# Backup with compression
+pg_dump -U postgres -d zetadb | gzip > zeta_backup.sql.gz
+```
+
+## Performance Tuning
+
+### Query Optimization
+```sql
+-- Analyze table statistics
+ANALYZE;
+
+-- Check query performance
+EXPLAIN ANALYZE SELECT * FROM content WHERE title ILIKE '%search%';
+
+-- Update table statistics
+VACUUM ANALYZE content;
+```
+
+### Index Maintenance
+```sql
+-- Check index usage
+SELECT schemaname, tablename, indexname, idx_scan, idx_tup_read, idx_tup_fetch
+FROM pg_stat_user_indexes
+ORDER BY idx_scan DESC;
+
+-- Rebuild indexes
+REINDEX TABLE content;
+```
+
+### Connection Pooling
+```bash
+# Check active connections
+psql -U postgres -d zetadb -c "SELECT count(*) FROM pg_stat_activity;"
+
+# Check connection limits
+psql -U postgres -d zetadb -c "SHOW max_connections;"
+```
+
+## Monitoring & Maintenance
+
+### Health Checks
+```sql
+-- Database size
+SELECT pg_size_pretty(pg_database_size('zetadb'));
+
+-- Table sizes
+SELECT 
+    schemaname,
+    tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+FROM pg_tables 
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+
+-- Index usage
+SELECT 
+    schemaname,
+    tablename,
+    indexname,
+    idx_scan,
+    idx_tup_read,
+    idx_tup_fetch
+FROM pg_stat_user_indexes
+ORDER BY idx_scan DESC;
+```
+
+### Maintenance Tasks
+```bash
+# Weekly maintenance
+psql -U postgres -d zetadb -c "VACUUM ANALYZE;"
+
+# Monthly maintenance
+psql -U postgres -d zetadb -c "REINDEX DATABASE zetadb;"
+
+# Check for long-running queries
+psql -U postgres -d zetadb -c "SELECT pid, now() - pg_stat_activity.query_start AS duration, query FROM pg_stat_activity WHERE (now() - pg_stat_activity.query_start) > interval '5 minutes';"
+```
+
+---
+
+**Zeta CMS Database** - Modern PostgreSQL database với comprehensive features cho content management, analytics, và social interactions

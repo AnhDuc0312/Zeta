@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: zeta-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zetadb
+      POSTGRES_USER: zeta_user
+      POSTGRES_PASSWORD: zeta_password_2024
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./data-export/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./data-export/users.sql:/docker-entrypoint-initdb.d/02-users.sql:ro
+      - ./data-export/categories.sql:/docker-entrypoint-initdb.d/03-categories.sql:ro
+      - ./data-export/content.sql:/docker-entrypoint-initdb.d/04-content.sql:ro
+      - ./data-export/comments.sql:/docker-entrypoint-initdb.d/05-comments.sql:ro
+      - ./data-export/tags.sql:/docker-entrypoint-initdb.d/06-tags.sql:ro
+      - ./data-export/settings.sql:/docker-entrypoint-initdb.d/07-settings.sql:ro
+      - ./data-export/activity_logs.sql:/docker-entrypoint-initdb.d/08-activity_logs.sql:ro
+      - ./data-export/analytics_events.sql:/docker-entrypoint-initdb.d/09-analytics_events.sql:ro
+      - ./data-export/user_likes.sql:/docker-entrypoint-initdb.d/10-user_likes.sql:ro
+      - ./data-export/user_views.sql:/docker-entrypoint-initdb.d/11-user_views.sql:ro
+      - ./backup:/backup
+    ports:
+      - "5432:5432"
+    networks:
+      - zeta-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zeta_user -d zetadb"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: zeta-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - zeta-network
+    command: redis-server --appendonly yes
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: zeta-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://zeta_user:zeta_password_2024@postgres:5432/zetadb
+      JWT_SECRET: your_super_secret_jwt_key_here_change_in_production
+      JWT_EXPIRES_IN: 7d
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE: 10485760
+      ALLOWED_FILE_TYPES: image/jpeg,image/png,image/webp,application/pdf
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - backend_uploads:/app/uploads
+      - ./logs:/app/logs
+    ports:
+      - "4000:4000"
+    networks:
+      - zeta-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build:
+      context: ./builder-orbit-lab-main
+      dockerfile: Dockerfile
+    container_name: zeta-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      VITE_API_URL: http://localhost:4000/api
+      VITE_APP_NAME: Zeta CMS
+    ports:
+      - "8080:8080"
+    networks:
+      - zeta-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: zeta-nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - backend_uploads:/var/www/uploads:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - zeta-network
+    depends_on:
+      - frontend
+      - backend
+
+  # Database Backup Service
+  backup:
+    image: postgres:15-alpine
+    container_name: zeta-backup
+    restart: "no"
+    environment:
+      PGPASSWORD: zeta_password_2024
+    volumes:
+      - ./backup:/backup
+      - postgres_data:/var/lib/postgresql/data:ro
+    networks:
+      - zeta-network
+    depends_on:
+      - postgres
+    command: |
+      sh -c "
+        echo 'Starting backup service...'
+        while true; do
+          echo 'Creating backup at $$(date)'
+          pg_dump -h postgres -U zeta_user -d zetadb > /backup/zetadb_$$(date +%Y%m%d_%H%M%S).sql
+          echo 'Backup completed at $$(date)'
+          # Keep only last 7 days of backups
+          find /backup -name 'zetadb_*.sql' -mtime +7 -delete
+          sleep 86400
+        done
+      "
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_uploads:
+    driver: local
+
+networks:
+  zeta-network:
+    driver: bridge

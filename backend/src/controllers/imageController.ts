@@ -158,3 +158,4 @@ export const generateThumbnail = async (req: Request, res: Response) => {
 
 // Export multer middleware
 export { upload };
+

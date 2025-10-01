@@ -223,3 +223,4 @@ describe('useToast', () => {
     expect(result.current.toasts.map(t => t.title)).toEqual(['First', 'Second', 'Third']);
   });
 });
+
