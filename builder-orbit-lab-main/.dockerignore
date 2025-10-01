@@ -1,62 +1,39 @@
+# Ignore các thư mục & file không cần trong image
 node_modules
-dist
-.git
-.gitignore
-README.md
-.env
-.env.local
-.env.development
-.env.test
-.env.production
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.DS_Store
-.vscode
-.idea
-*.swp
-*.swo
-*~
-.cursor
-coverage
-.nyc_output
-.eslintcache
 *.log
 *.lock
 *.tmp
 *.tmp.*
 log.txt
 
+# IDE & OS files
+.vscode
+.idea
 .DS_Store
-node_modules
-**/node_modules/**
-build
-data
-.env
-load-ids.txt
+*.swp
+*.swo
+*~
+.cursor
 
-server
-tmp
-types
+# Coverage / cache / build phụ
+coverage
+.nyc_output
+.eslintcache
+
+# Git
 .git
 .gitignore
-dist
-service
-tests
-fixtures-pages
-fixtures-apps
 
-# Netlify
+# Env (copy riêng nếu cần)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# CI / deploy artifacts
 .netlify
-packages/ml-air/lib
-packages/ml-air/bin
-packages/ml-air/project
-packages/ml-air/share
-packages/ml-air/random_forest_classification/
-packages/ml-air/__pycache__/
-packages/ml-air/app/__pycache__/
-packages/vcp-common/native-bridge/build
-packages/vcp-common/_tests_/dataset-ranking.csv
-node_modules/
 Dockerfile
-.gitignore
