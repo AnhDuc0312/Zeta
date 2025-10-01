@@ -10,12 +10,13 @@ services:
     container_name: zeta-postgres-prod
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-zetadb}
-      POSTGRES_USER: ${POSTGRES_USER:-zeta_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-builder_orbit_lab}
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-120301}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
+      - ./data-export/init-database.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
       - ./data-export/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./backup:/backup
     ports:
@@ -23,7 +24,7 @@ services:
     networks:
       - zeta-network-prod
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zeta_user} -d ${POSTGRES_DB:-zetadb}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-builder_orbit_lab}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -64,7 +65,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-zeta_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-zetadb}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-120301}@postgres:5432/${POSTGRES_DB:-builder_orbit_lab}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       UPLOAD_DIR: /app/uploads
@@ -164,10 +165,10 @@ services:
         echo 'Starting backup service...'
         while true; do
           echo 'Creating backup at $$(date)'
-          pg_dump -h postgres -U ${POSTGRES_USER:-zeta_user} -d ${POSTGRES_DB:-zetadb} > /backup/zetadb_$$(date +%Y%m%d_%H%M%S).sql
+          pg_dump -h postgres -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-builder_orbit_lab} > /backup/builder_orbit_lab_$$(date +%Y%m%d_%H%M%S).sql
           echo 'Backup completed at $$(date)'
           # Keep only last 30 days of backups
-          find /backup -name 'zetadb_*.sql' -mtime +30 -delete
+          find /backup -name 'builder_orbit_lab_*.sql' -mtime +30 -delete
           sleep 86400
         done
       "
