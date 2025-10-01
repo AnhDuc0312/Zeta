@@ -5,10 +5,8 @@ Tài liệu tổng hợp về việc triển khai Zeta CMS trên VPS với Docke
 ## 📚 Tài liệu Deployment
 
 ### 🎯 Quick Start
-- **[QUICK-START-DEV.md](./QUICK-START-DEV.md)** - Hướng dẫn deploy nhanh từ nhánh DEV (15 phút)
-- **[QUICK-START-VPS.md](./QUICK-START-VPS.md)** - Hướng dẫn deploy nhanh với domain (10 phút)
-- **[DEV-DEPLOYMENT-GUIDE.md](./DEV-DEPLOYMENT-GUIDE.md)** - Hướng dẫn chi tiết cho development
-- **[VPS-DEPLOYMENT-GUIDE.md](./VPS-DEPLOYMENT-GUIDE.md)** - Hướng dẫn chi tiết cho production
+- **[DEPLOY.md](./DEPLOY.md)** - Hướng dẫn deploy đơn giản
+- **[ENV.md](./ENV.md)** - Tài liệu environment variables
 - **[README-DOCKER.md](./README-DOCKER.md)** - Tài liệu Docker configuration
 
 ### 🔧 Scripts & Tools
