@@ -8,7 +8,7 @@ export default defineConfig({
     target: "node18",
     ssr: true,
     rollupOptions: {
-      input: "server/node-build.ts",
+      input: path.resolve(__dirname, "server/node-build.ts"),
       external: [
         // Node.js built-ins
         "fs",

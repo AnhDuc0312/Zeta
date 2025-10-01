@@ -1,41 +1,34 @@
 # Frontend Dockerfile
-FROM node:18-alpine AS base
-
-# Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat curl
-WORKDIR /app
-
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN npm install --legacy-peer-deps
-
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Build the application
-ENV NODE_ENV=production
-RUN npm run build
-
-# Production image, copy all the files and run the app
-FROM base AS runner
-WORKDIR /app
+FROM node:18-alpine
 
 # Install curl for health checks
 RUN apk add --no-cache curl
 
-ENV NODE_ENV=production
+WORKDIR /app
 
-# Create a non-root user
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies
+RUN npm install --legacy-peer-deps
+
+# Copy source code
+COPY . .
+
+# Build the application
+ENV NODE_ENV=production
+RUN npm run build:client
+
+# Create simple server
+RUN mkdir -p dist/server
+RUN echo 'import express from "express"; const app = express(); app.use(express.static("dist/spa")); app.get("*", (req, res) => { if (req.path.startsWith("/api/")) return res.status(404).json({error: "API not found"}); res.sendFile("dist/spa/index.html", {root: "."}); }); app.listen(8080, () => console.log("Server running on port 8080"));' > dist/server/node-build.mjs
+
+# Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
-# Copy the built application
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
+# Change ownership
+RUN chown -R nodejs:nodejs /app
 
 USER nodejs
 

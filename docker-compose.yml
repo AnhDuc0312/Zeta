@@ -89,7 +89,7 @@ services:
   frontend:
     build:
       context: ./builder-orbit-lab-main
-      dockerfile: Dockerfile.simple
+      dockerfile: Dockerfile
     container_name: zeta-frontend
     restart: unless-stopped
     environment:
