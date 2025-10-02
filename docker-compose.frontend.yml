@@ -1,0 +1,31 @@
+# Zeta CMS - Frontend Only
+# This file contains only the frontend service
+
+services:
+  # Frontend
+  frontend:
+    build:
+      context: ./builder-orbit-lab-main
+      dockerfile: Dockerfile
+    container_name: zeta-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      VITE_API_URL: http://localhost:4000/api
+      VITE_APP_NAME: Zeta CMS
+      VITE_APP_VERSION: 1.0.0
+    ports:
+      - "8080:8080"
+    networks:
+      - zeta-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  zeta-network:
+    driver: bridge
+    external: true
