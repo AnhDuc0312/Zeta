@@ -71,6 +71,7 @@ services:
       LOG_LEVEL: info
     volumes:
       - backend_uploads:/app/uploads
+      - backend_uploads:/app/public/uploads
       - ./logs:/app/logs
     ports:
       - "4000:4000"

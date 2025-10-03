@@ -38,9 +38,11 @@ COPY --from=builder --chown=nodejs:nodejs /app/src ./src
 COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nodejs:nodejs /app/tsconfig.json ./tsconfig.json
 
-# Create uploads directory
+# Create required directories
 RUN mkdir -p /app/uploads && chown nodejs:nodejs /app/uploads
 RUN mkdir -p /app/logs && chown nodejs:nodejs /app/logs
+RUN mkdir -p /app/public && chown nodejs:nodejs /app/public
+RUN mkdir -p /app/public/uploads && chown nodejs:nodejs /app/public/uploads
 
 # Install tsx for production
 RUN npm install -g tsx
