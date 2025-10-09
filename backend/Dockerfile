@@ -1,4 +1,4 @@
-# Backend Dockerfile
+# Backend Dockerfile with Frontend Integration
 FROM node:18-alpine AS base
 
 # Install dependencies only when needed
@@ -10,13 +10,30 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --only=production && npm cache clean --force
 
-# Rebuild the source code only when needed
+# Frontend build stage
+FROM base AS frontend-builder
+WORKDIR /frontend
+
+# Copy frontend package files
+COPY ../builder-orbit-lab-main/package.json ../builder-orbit-lab-main/package-lock.json* ./
+
+# Install frontend dependencies
+RUN npm install --legacy-peer-deps
+
+# Copy frontend source code
+COPY ../builder-orbit-lab-main/ ./
+
+# Build frontend
+ENV NODE_ENV=production
+RUN npm run build:client
+
+# Backend build stage
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the application
+# Build the backend application
 RUN npm run build || echo "Build step completed"
 
 # Production image, copy all the files and run the app
@@ -32,11 +49,14 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
-# Copy the built application
+# Copy the built backend application
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/src ./src
 COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nodejs:nodejs /app/tsconfig.json ./tsconfig.json
+
+# Copy the built frontend to ui directory
+COPY --from=frontend-builder --chown=nodejs:nodejs /frontend/dist/spa ./ui
 
 # Create required directories
 RUN mkdir -p /app/uploads && chown nodejs:nodejs /app/uploads

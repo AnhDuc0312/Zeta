@@ -31,13 +31,23 @@ app.use(express.json());
 // Serve static files from uploads directory
 app.use('/uploads', express.static('public/uploads'));
 
+// Serve static frontend files from ui directory
+app.use(express.static('ui'));
+
 // Mount all API routes
 app.use('/api', routes);
 setupSwagger(app);
 app.use(errorHandler);
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('Builder Orbit Lab API is running');
+// Serve frontend for all non-API routes (SPA routing)
+app.get('*', (req: Request, res: Response) => {
+  // Skip API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  
+  // Serve index.html for all other routes (SPA routing)
+  res.sendFile('index.html', { root: 'ui' });
 });
 
 // Chỉ kiểm tra kết nối DB khi không phải test environment

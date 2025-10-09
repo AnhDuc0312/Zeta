@@ -29,3 +29,4 @@ sudo docker exec zeta-backend env 2>/dev/null || echo "Container not running"
 echo ""
 echo "📋 File system check:"
 sudo docker exec zeta-backend ls -la /app 2>/dev/null || echo "Container not running"
+

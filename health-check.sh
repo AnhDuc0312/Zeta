@@ -44,3 +44,4 @@ sudo docker logs zeta-backend --tail 5 2>/dev/null || echo "Backend not running"
 echo ""
 echo "📋 Recent Logs (Frontend):"
 sudo docker logs zeta-frontend --tail 5 2>/dev/null || echo "Frontend not running"
+

@@ -4,7 +4,7 @@ echo "🔧 Fixing Backend Container..."
 
 # Stop backend
 echo "🛑 Stopping backend..."
-sudo docker compose -f docker-compose.services.yml stop backend
+sudo docker compose stop backend
 
 # Remove backend container and image
 echo "🗑️  Removing old backend..."
@@ -13,11 +13,11 @@ sudo docker rmi zeta-backend 2>/dev/null || true
 
 # Rebuild backend
 echo "🏗️  Rebuilding backend..."
-sudo docker compose -f docker-compose.services.yml build --no-cache backend
+sudo docker compose build --no-cache backend
 
 # Start backend
 echo "🚀 Starting backend..."
-sudo docker compose -f docker-compose.services.yml up -d backend
+sudo docker compose up -d backend
 
 # Wait for backend to start
 echo "⏳ Waiting for backend to start..."

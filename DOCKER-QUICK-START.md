@@ -72,3 +72,4 @@ sudo docker compose -f docker-compose.frontend.yml ps
 | `./stop-all.sh` | Dừng tất cả |
 
 **Khuyến nghị:** Chạy `./start-services.sh` trước, sau đó `./start-frontend.sh` 🚀
+

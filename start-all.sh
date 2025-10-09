@@ -8,17 +8,16 @@ cp env .env
 # Create network
 sudo docker network create zeta-network 2>/dev/null || echo "Network already exists"
 
-# Start backend services first
-echo "🏗️  Starting backend services..."
-sudo docker compose -f docker-compose.services.yml up -d
+# Start all services (backend with integrated frontend)
+echo "🏗️  Starting all services..."
+sudo docker compose up -d
 
 # Wait for backend to be ready
 echo "⏳ Waiting for backend to be ready..."
 sleep 15
 
-# Start frontend
-echo "🎨 Starting frontend..."
-sudo docker compose -f docker-compose.frontend.yml up -d
+# Frontend is now integrated in backend
+echo "🎨 Frontend is integrated in backend..."
 
 echo "✅ All services started!"
 echo ""
@@ -34,12 +33,10 @@ echo "   - API: http://localhost:4000/api"
 echo "   - API Docs: http://localhost:4000/api-docs"
 echo ""
 echo "📋 To check logs:"
-echo "   sudo docker compose -f docker-compose.services.yml logs"
-echo "   sudo docker compose -f docker-compose.frontend.yml logs"
+echo "   sudo docker compose logs"
 echo ""
 echo "📋 To check status:"
-echo "   sudo docker compose -f docker-compose.services.yml ps"
-echo "   sudo docker compose -f docker-compose.frontend.yml ps"
+echo "   sudo docker compose ps"
 echo ""
 echo "📋 To stop all:"
 echo "   ./stop-all.sh"
