@@ -1,37 +1,37 @@
 # Backend Dockerfile with Frontend Integration
 FROM node:18-alpine AS base
 
-# Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat curl
-WORKDIR /app
-
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production && npm cache clean --force
-
 # Frontend build stage
 FROM base AS frontend-builder
 WORKDIR /frontend
 
 # Copy frontend package files
-COPY ../builder-orbit-lab-main/package.json ../builder-orbit-lab-main/package-lock.json* ./
+COPY builder-orbit-lab-main/package.json builder-orbit-lab-main/package-lock.json* ./
 
 # Install frontend dependencies
 RUN npm install --legacy-peer-deps
 
 # Copy frontend source code
-COPY ../builder-orbit-lab-main/ ./
+COPY builder-orbit-lab-main/ ./
 
 # Build frontend
 ENV NODE_ENV=production
 RUN npm run build:client
 
+# Backend dependencies stage
+FROM base AS deps
+RUN apk add --no-cache libc6-compat curl
+WORKDIR /app
+
+# Install backend dependencies
+COPY backend/package.json backend/package-lock.json* ./
+RUN npm ci --only=production && npm cache clean --force
+
 # Backend build stage
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY backend/ .
 
 # Build the backend application
 RUN npm run build || echo "Build step completed"
