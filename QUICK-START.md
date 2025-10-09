@@ -22,12 +22,27 @@ Dockerfile đã được sửa và build thành công. Bây giờ bạn có th�
 sudo ./start-backend-only.sh
 ```
 
+## 🗄️ Khởi tạo Database
+
+Database sẽ được tự động khởi tạo khi chạy containers, nhưng bạn có thể kiểm tra và setup thủ công:
+
+```bash
+# Setup database (tự động khởi tạo tables và data)
+./setup-database.sh
+
+# Hoặc setup chi tiết hơn
+./init-database.sh
+```
+
 ## 🚀 Chạy ứng dụng
 
 ### Cách 1: Backend với Frontend tích hợp (Khuyến nghị)
 ```bash
 # Build (đã xong)
 ./build-backend-only.sh
+
+# Setup database
+./setup-database.sh
 
 # Start
 ./start-without-sudo.sh  # (sau khi setup permissions)
